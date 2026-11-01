@@ -1,8 +1,8 @@
 # Chùa · tuvi.terranimus.com/chua/
 
 The web temple **Chánh Điện Online** by **Kent Juno**, served by Terranimus as a tab of Tử Vi at
-<https://tuvi.terranimus.com/chua/> ("Chùa" in Tử Vi's top bar). `https://chua.terranimus.com` was its first address
-(2 Nov 2026) and now only redirects there (301, path kept).
+<https://tuvi.terranimus.com/chua/> ("Chùa" in Tử Vi's top bar). It has no hostname of its own: the first address,
+`chua.terranimus.com`, was removed by the owner on 2 Nov 2026 and the deploy script removes any custom domain it finds.
 
 **Free, always.** The owner, 2 Nov 2026: the temple never charges. No payment, donation, bank account or "coin" is ever
 shown on the page or in this repository. This repository is a fork of
@@ -24,8 +24,7 @@ to the author stays on the page ("Thực hiện bởi Kent Juno", linked to the 
 
 A Cloudflare Worker named `chua` on the Terranimus Cloudflare account, with **Workers static assets**. It holds two
 Worker routes on Tử Vi's name, `tuvi.terranimus.com/chua` and `tuvi.terranimus.com/chua/*`; they are more specific than
-Tử Vi's own `tuvi.terranimus.com/*`, so every other Tử Vi path never reaches it. The custom domain `chua.terranimus.com`
-points at the same Worker, which only redirects it. The Tử Vi app's code is not involved; its top bar links to
+Tử Vi's own `tuvi.terranimus.com/*`, so every other Tử Vi path never reaches it. The Tử Vi app's code is not involved; its top bar links to
 `/chua/`. `ops/chua.worker.mjs` answers GET/HEAD only and adds:
 
 - `Content-Security-Policy`: `default-src 'none'`; the page's inline script and two style blocks are allowed **by
@@ -53,17 +52,17 @@ node scripts/chua-deploy.mjs --dry-run    # lists the files and the CSP, touches
 node scripts/chua-deploy.mjs              # commit first: refuses a dirty tree
 ```
 
-The script gates on the vault, uploads the assets and the Worker through the Cloudflare API, keeps the custom domain
-`chua.terranimus.com` (refusing if another DNS record already holds the name) and the two routes on Tử Vi's name
+The script gates on the vault, uploads the assets and the Worker through the Cloudflare API, removes any custom
+domain of the Worker and keeps the two routes on Tử Vi's name
 (refusing a route held by another script), then checks live: health names this commit, the page carries the CSP and
 HSTS, `/chua` redirects to `/chua/`, `/chua/live/*`, `/chua/README.md`, `/chua/.git/config` and the scripts answer 404,
-`chua.terranimus.com` redirects, and Tử Vi's own `/health/ready` still answers from Tử Vi.
+and Tử Vi's own `/health/ready` still answers from Tử Vi.
 
 If you change `index.html`, just redeploy: the CSP hashes are recomputed from the file. An external `<script src>` or
 an inline `on…=` handler makes the deploy refuse until it is reviewed.
 
 **Taking it down:** delete the two routes `tuvi.terranimus.com/chua*` first (then `/chua` falls through to Tử Vi), then
-the Worker `chua` and its custom domain. Nothing else uses them.
+the Worker `chua`. Nothing else uses them.
 
 ## Pulling upstream changes
 

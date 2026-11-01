@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * chua-deploy.mjs — puts the temple on chua.terranimus.com (vault action `deploy`). Idempotent.
+ * chua-deploy.mjs — puts the temple on tuvi.terranimus.com/chua/, a tab of Tử Vi (vault action `deploy`). Idempotent.
  *
  *   node scripts/vault-sync.mjs pull --action deploy
  *   node scripts/chua-deploy.mjs [--dry-run]
@@ -11,8 +11,9 @@
  * Steps: the Content-Security-Policy is built with the sha256 of each inline <script> and <style> in index.html; the
  * files are uploaded as Workers static assets (assets-upload-session, then the buckets Cloudflare asks for); the Worker
  * "chua" (ops/chua.worker.mjs) is uploaded through the Cloudflare API (never wrangler) with the assets, CSP and COMMIT;
- * the custom domain chua.terranimus.com is attached; then the live checks: /health/ready names this commit, / answers
- * 200 with the CSP and HSTS, /live/* answers 404. Prints names and counts, never a secret.
+ * any custom domain of the Worker is removed; the routes tuvi.terranimus.com/chua and /chua/* are kept; then the live
+ * checks: /chua/health/ready names this commit, /chua/ answers 200 with the CSP and HSTS, /chua/live/* answers 404,
+ * Tử Vi's own /health/ready still answers from Tử Vi. Prints names and counts, never a secret.
  */
 import { createHash } from 'node:crypto'
 import { readFileSync, readdirSync, statSync } from 'node:fs'
@@ -23,7 +24,6 @@ import { execFileSync } from 'node:child_process'
 import { vaultGate } from './lib/vault-gate.mjs'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
-const HOST = 'chua.terranimus.com' // the first address; now only redirects to the tab
 const PUBLIC_HOST = 'tuvi.terranimus.com'
 const BASE = '/chua'
 const ROUTES = [`${PUBLIC_HOST}${BASE}`, `${PUBLIC_HOST}${BASE}/*`]
@@ -115,7 +115,7 @@ console.log(`CSP: ${csp}`)
 
 if (DRY) {
   for (const f of files) console.log(`  ${f.path} ${f.size} B`)
-  console.log(`[dry run] would upload ${files.length} assets and the Worker "${SCRIPT}", attach ${HOST} (redirect), routes ${ROUTES.join(', ')}`)
+  console.log(`[dry run] would upload ${files.length} assets and the Worker "${SCRIPT}", remove any custom domain, routes ${ROUTES.join(', ')}`)
   process.exit(0)
 }
 if (dirty) { console.error('chua-deploy: the working tree has uncommitted changes; commit first so the live commit is real'); process.exit(1) }
@@ -167,14 +167,12 @@ const upj = await up.json().catch(() => ({}))
 if (!up.ok || upj.success === false) { console.error('chua-deploy: worker upload failed:', (upj.errors || []).map((e) => `${e.code} ${e.message}`).join('; ')); process.exit(1) }
 console.log(`worker ${SCRIPT} uploaded`)
 
-// 3. The custom domain (refuses if another record already uses the name).
+// 3. No custom domain: the owner, 2 Nov 2026, removed chua.terranimus.com (the temple is only a tab of Tử Vi).
 const domains = await cf('GET', `/accounts/${ACCOUNT}/workers/domains`)
-if (!(domains || []).some((d) => d.hostname === HOST && d.service === SCRIPT)) {
-  const recs = await cf('GET', `/zones/${env.CF_ZONE_ID}/dns_records?name=${HOST}`)
-  if (recs.length) { console.error(`chua-deploy: ${HOST} already has ${recs.map((r) => `${r.type} ${r.content}`).join(', ')}; refusing to replace it`); process.exit(1) }
-  await cf('PUT', `/accounts/${ACCOUNT}/workers/domains`, { environment: 'production', hostname: HOST, service: SCRIPT, zone_id: env.CF_ZONE_ID })
-  console.log(`custom domain ${HOST} attached`)
-} else console.log(`custom domain ${HOST} already attached`)
+for (const d of (domains || []).filter((x) => x.service === SCRIPT)) {
+  await cf('DELETE', `/accounts/${ACCOUNT}/workers/domains/${d.id}`)
+  console.log(`custom domain ${d.hostname} removed (the temple lives only at ${SITE}/)`)
+}
 
 // 4. The tab: Worker routes for /chua and /chua/* on TuVi's name (more specific than TuVi's own tuvi.terranimus.com/*,
 // so only these paths reach this Worker). A route held by another script is refused, never taken over.
@@ -204,8 +202,6 @@ async function live() {
   }
   const a = await fetch(`${SITE}/assets/hall.jpg`, { method: 'HEAD' })
   if (a.status !== 200 || !/max-age=86400/.test(a.headers.get('cache-control') || '')) return `${BASE}/assets/hall.jpg ${a.status} ${a.headers.get('cache-control')}`
-  const old = await fetch(`https://${HOST}/assets/hall.jpg`, { redirect: 'manual' })
-  if (old.status !== 301 || old.headers.get('location') !== `${SITE}/assets/hall.jpg`) return `${HOST} answered ${old.status} ${old.headers.get('location')}, expected 301 to the tab`
   // TuVi itself must still answer from TuVi.
   const t = await fetch(`https://${PUBLIC_HOST}/health/ready`, { cache: 'no-store' })
   const tj = await t.json().catch(() => ({}))
@@ -216,7 +212,7 @@ let last = ''
 for (let i = 0; i < 30; i++) {
   await new Promise((r) => setTimeout(r, 4000))
   try { last = await live() } catch (e) { last = e.message }
-  if (last === null) { console.log(`chua-deploy: ok (${SITE}/ on ${commit.slice(0, 12)}; live/ answers 404; ${HOST} redirects; TuVi untouched)`); process.exit(0) }
+  if (last === null) { console.log(`chua-deploy: ok (${SITE}/ on ${commit.slice(0, 12)}; live/ answers 404; TuVi untouched)`); process.exit(0) }
   if (i % 3 === 0) console.log(`waiting: ${last}`)
 }
 console.error(`chua-deploy: live checks did not pass in two minutes (${last})`)

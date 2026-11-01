@@ -1,7 +1,7 @@
 // The temple as a tab of Tử Vi: tuvi.terranimus.com/chua/ (Worker routes tuvi.terranimus.com/chua and /chua/*; every
 // other TuVi path never reaches this Worker). Serves index.html + assets/ from the Worker's static assets and adds the
 // security and cache headers. Only GET and HEAD. live/ (the TikTok LIVE kit) is never uploaded, so /chua/live/*
-// answers 404 like any unknown path. chua.terranimus.com (the first address, 2 Nov 2026) only redirects here.
+// answers 404 like any unknown path. There is no other hostname (chua.terranimus.com was removed, 2 Nov 2026).
 //
 // Bindings (set by scripts/chua-deploy.mjs): ASSETS (static assets), CSP (the policy with the hashes of the page's
 // inline script and styles, computed at deploy), COMMIT, PUBLIC_HOST, BASE ("/chua").
@@ -36,10 +36,7 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url)
     const BASE = env.BASE
-    // The old address: send everything to the tab, keeping the path.
-    if (url.hostname !== env.PUBLIC_HOST) {
-      return Response.redirect(`https://${env.PUBLIC_HOST}${BASE}${url.pathname}${url.search}`, 301)
-    }
+    if (url.hostname !== env.PUBLIC_HOST) return withHeaders(plain(404, 'Not found'), env, url.pathname)
     if (url.pathname === BASE) return Response.redirect(`https://${env.PUBLIC_HOST}${BASE}/${url.search}`, 301)
     if (!url.pathname.startsWith(`${BASE}/`)) return withHeaders(plain(404, 'Không tìm thấy trang · Not found'), env, url.pathname)
     const path = url.pathname.slice(BASE.length) // "/", "/assets/hall.jpg", ...
