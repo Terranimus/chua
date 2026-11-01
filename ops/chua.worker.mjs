@@ -1,9 +1,10 @@
-// chua.terranimus.com: serves the static temple (index.html + assets/) from the Worker's static assets and adds the
-// security and cache headers. Only GET and HEAD. Nothing else exists here: live/ (the TikTok LIVE kit) is never
-// uploaded, so /live/* answers 404 like any unknown path.
+// The temple as a tab of Tử Vi: tuvi.terranimus.com/chua/ (Worker routes tuvi.terranimus.com/chua and /chua/*; every
+// other TuVi path never reaches this Worker). Serves index.html + assets/ from the Worker's static assets and adds the
+// security and cache headers. Only GET and HEAD. live/ (the TikTok LIVE kit) is never uploaded, so /chua/live/*
+// answers 404 like any unknown path. chua.terranimus.com (the first address, 2 Nov 2026) only redirects here.
 //
 // Bindings (set by scripts/chua-deploy.mjs): ASSETS (static assets), CSP (the policy with the hashes of the page's
-// inline script and styles, computed at deploy), COMMIT.
+// inline script and styles, computed at deploy), COMMIT, PUBLIC_HOST, BASE ("/chua").
 
 const SECURITY = {
   'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
@@ -29,19 +30,35 @@ function withHeaders(res, env, path) {
   return out
 }
 
+const plain = (status, text, extra = {}) => new Response(text, { status, headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store', ...extra } })
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url)
+    const BASE = env.BASE
+    // The old address: send everything to the tab, keeping the path.
+    if (url.hostname !== env.PUBLIC_HOST) {
+      return Response.redirect(`https://${env.PUBLIC_HOST}${BASE}${url.pathname}${url.search}`, 301)
+    }
+    if (url.pathname === BASE) return Response.redirect(`https://${env.PUBLIC_HOST}${BASE}/${url.search}`, 301)
+    if (!url.pathname.startsWith(`${BASE}/`)) return withHeaders(plain(404, 'Không tìm thấy trang · Not found'), env, url.pathname)
+    const path = url.pathname.slice(BASE.length) // "/", "/assets/hall.jpg", ...
+
     if (request.method !== 'GET' && request.method !== 'HEAD') {
-      return withHeaders(new Response('Method Not Allowed', { status: 405, headers: { Allow: 'GET, HEAD', 'Content-Type': 'text/plain; charset=utf-8' } }), env, url.pathname)
+      return withHeaders(plain(405, 'Method Not Allowed', { Allow: 'GET, HEAD' }), env, path)
     }
-    if (url.pathname === '/health/ready') {
-      return withHeaders(Response.json({ service: 'terranimus-chua', commit: env.COMMIT }, { headers: { 'Cache-Control': 'no-store' } }), env, url.pathname)
+    if (path === '/health/ready') {
+      return withHeaders(Response.json({ service: 'terranimus-chua', commit: env.COMMIT }, { headers: { 'Cache-Control': 'no-store' } }), env, path)
     }
-    const res = await env.ASSETS.fetch(request)
-    if (res.status === 404) {
-      return withHeaders(new Response('Không tìm thấy trang · Not found', { status: 404, headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' } }), env, url.pathname)
+    const inner = new URL(path + url.search, url.origin)
+    const res = await env.ASSETS.fetch(new Request(inner, request))
+    if (res.status === 404) return withHeaders(plain(404, 'Không tìm thấy trang · Not found'), env, path)
+    if (res.status >= 300 && res.status < 400) {
+      // The assets layer redirects /index.html to "/": put the tab's prefix back on.
+      const loc = res.headers.get('Location') || '/'
+      const to = new URL(loc, inner)
+      return withHeaders(new Response(null, { status: res.status, headers: { Location: `${BASE}${to.pathname}${to.search}` } }), env, path)
     }
-    return withHeaders(res, env, url.pathname)
+    return withHeaders(res, env, path)
   },
 }

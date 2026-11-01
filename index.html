@@ -6,7 +6,7 @@
 <meta name="description" content="Chánh điện online: nhập pháp danh, an tọa tụng kinh cùng mọi người, nghe nhạc thiền.">
 <meta name="theme-color" content="#0c0705">
 <meta property="og:title" content="Tịnh Tâm · Chánh Điện Online">
-<meta property="og:image" content="/assets/hall.jpg">
+<meta property="og:image" content="https://tuvi.terranimus.com/chua/assets/hall.jpg">
 <title>Tịnh Tâm · Chánh Điện Online</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif:ital,wght@0,400;0,600;1,400&family=Be+Vietnam+Pro:wght@400;500;600&display=swap">
 <style>
@@ -86,10 +86,10 @@ input::placeholder{color:#7d6a52}
   <div id="feed" aria-live="polite"></div>
   <div id="bottom" class="hud">
     <span id="gifts" hidden>
-      <button class="btn gift" data-coins="1" data-fx="petal"><b>Cánh sen</b><small>1 coin</small></button>
-      <button class="btn gift" data-coins="5" data-fx="incense"><b>Dâng hương</b><small>5 coins</small></button>
-      <button class="btn gift" data-coins="20" data-fx="lotus"><b>Hoa sen</b><small>20 coins</small></button>
-      <button class="btn gift" data-coins="99" data-fx="bell"><b>Thỉnh chuông</b><small>99 coins</small></button>
+      <button class="btn gift" data-coins="1" data-fx="petal"><b>Cánh sen</b></button>
+      <button class="btn gift" data-coins="5" data-fx="incense"><b>Dâng hương</b></button>
+      <button class="btn gift" data-coins="20" data-fx="lotus"><b>Hoa sen</b></button>
+      <button class="btn gift" data-coins="99" data-fx="bell"><b>Thỉnh chuông</b></button>
     </span>
     <span class="row">
       <button class="btn" id="nextTrack" hidden title="Bài kế tiếp"><span id="nowPlaying">♪</span> ›</button>
@@ -101,7 +101,7 @@ input::placeholder{color:#7d6a52}
   <div id="gate">
     <form id="gateForm">
       <h1>Chánh Điện Online</h1>
-      <p>Nhập pháp danh, chọn y phục rồi vào an tọa. Đây là bản thử để kiểm tra giao diện 2.5D: nút quà ở dưới mô phỏng donation TikTok.</p>
+      <p>Nhập pháp danh, chọn y phục rồi vào an tọa. Các nút dâng cánh sen, dâng hương, hoa sen, thỉnh chuông bên dưới đều miễn phí.</p>
       <label for="dharma">Pháp danh</label>
       <input id="dharma" name="dharma" maxlength="20" autocomplete="nickname" placeholder="Ví dụ: Diệu Hạnh, Minh Tâm…" required>
       <label>Y phục</label>
@@ -251,7 +251,7 @@ function showToast(t){ toast.textContent=t; toast.classList.add('show'); clearTi
 function renderBoard(){
   const top=[...visitors].filter(v=>v.coins>0).sort((a,b)=>b.coins-a.coins).slice(0,3);
   const ol=document.getElementById('boardList'); ol.innerHTML='';
-  for (const v of top){ const li=document.createElement('li'); li.textContent=v.name; const s=document.createElement('span'); s.textContent=v.coins; li.append(s); ol.append(li); }
+  for (const v of top){ const li=document.createElement('li'); li.textContent=v.name; ol.append(li); }
   document.getElementById('board').hidden = top.length===0;
 }
 renderBoard();
@@ -266,7 +266,7 @@ function donate(v, coins, kind, text){
   for (let i=0;i<(big?18:coins>=20?8:3);i++) floaters.push({ x:v.seat.x+(Math.random()-.5)*160*v.seat.scale, y:v.seat.y-60, vx:(Math.random()-.5)*30, vy:-(60+Math.random()*80), t:0, life:2.5+Math.random(), s:.18+Math.random()*.15 });
   if (big){ bell(true); for (let i=0;i<24;i++) floaters.push({ x:SW/2+(Math.random()-.5)*500, y:300+Math.random()*300, vx:(Math.random()-.5)*40, vy:20+Math.random()*40, t:0, life:4, s:.2+Math.random()*.15, down:true }); }
   const label = {petal:'Cánh sen',incense:'Dâng hương',lotus:'Hoa sen',bell:'Thỉnh chuông'}[kind];
-  say(v.name, ` đã gửi ${label} ×${coins}` + (text?` · "${text}"`:''), true);
+  say(v.name, ` đã dâng ${label}` + (text?` · "${text}"`:''), true);
   showToast(`${v.name} dâng ${label}` + (text?` — ${text}`:''));
   ttsSpeak(`${v.name} dâng ${label}. ${text||''}`);
   renderBoard();

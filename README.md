@@ -1,7 +1,11 @@
-# Chùa · chua.terranimus.com
+# Chùa · tuvi.terranimus.com/chua/
 
-The web temple **Chánh Điện Online** by **Kent Juno**, served by Terranimus at <https://chua.terranimus.com> and linked
-from the Tử Vi landing page ("Vào Chùa"). This repository is a fork of
+The web temple **Chánh Điện Online** by **Kent Juno**, served by Terranimus as a tab of Tử Vi at
+<https://tuvi.terranimus.com/chua/> ("Chùa" in Tử Vi's top bar). `https://chua.terranimus.com` was its first address
+(2 Nov 2026) and now only redirects there (301, path kept).
+
+**Free, always.** The owner, 2 Nov 2026: the temple never charges. No payment, donation, bank account or "coin" is ever
+shown on the page or in this repository. This repository is a fork of
 [kentjuno/chanh-dien-online](https://github.com/kentjuno/chanh-dien-online) (MIT, `LICENSE` kept unchanged). Credit
 to the author stays on the page ("Thực hiện bởi Kent Juno", linked to the original repository).
 
@@ -9,17 +13,20 @@ to the author stays on the page ("Thực hiện bởi Kent Juno", linked to the 
 
 | Path | Published | Why |
 |---|---|---|
-| `index.html` | yes | the temple page (unchanged from upstream except the credit link and a line saying the page does not represent any temple or religious organisation) |
+| `index.html` | yes | the temple page. Changes from upstream: the credit links to the original repository; a line says the page does not represent any temple or religious organisation; the offering buttons carry no "coin" amounts, the merit board shows names only, and the entry text says the offerings are free; `og:image` is absolute |
 | `assets/` | yes | images (made with Google Flow) and music (made with Gemini), per the upstream README |
-| `live/` | **never** | the TikTok LIVE kit: a Node server meant to run on the streamer's own machine, bound to 127.0.0.1. It is not uploaded, so `https://chua.terranimus.com/live/*` answers 404 |
+| `live/` | **never** | the TikTok LIVE kit: a Node server meant to run on the streamer's own machine, bound to 127.0.0.1. It is not uploaded, so `https://tuvi.terranimus.com/chua/live/*` answers 404 |
 | everything else | no | `scripts/chua-deploy.mjs` uploads an allow-list (index.html + assets/ media files) and refuses unknown file types |
 
 `_headers` is upstream's Cloudflare Pages file; it is not used here (the Worker sets the headers).
 
 ## How it is hosted
 
-A Cloudflare Worker named `chua` on the Terranimus Cloudflare account, with **Workers static assets**, on the custom
-domain `chua.terranimus.com` (same way as Grid). `ops/chua.worker.mjs` answers GET/HEAD only and adds:
+A Cloudflare Worker named `chua` on the Terranimus Cloudflare account, with **Workers static assets**. It holds two
+Worker routes on Tử Vi's name, `tuvi.terranimus.com/chua` and `tuvi.terranimus.com/chua/*`; they are more specific than
+Tử Vi's own `tuvi.terranimus.com/*`, so every other Tử Vi path never reaches it. The custom domain `chua.terranimus.com`
+points at the same Worker, which only redirects it. The Tử Vi app's code is not involved; its top bar links to
+`/chua/`. `ops/chua.worker.mjs` answers GET/HEAD only and adds:
 
 - `Content-Security-Policy`: `default-src 'none'`; the page's inline script and two style blocks are allowed **by
   sha256 hash** only (computed at deploy, no `unsafe-inline`); fonts from Google Fonts; images, audio from self;
@@ -29,7 +36,7 @@ domain `chua.terranimus.com` (same way as Grid). `ops/chua.worker.mjs` answers G
   `Cross-Origin-Opener-Policy`, `Cross-Origin-Resource-Policy`.
 - Cache: the page `max-age=0, must-revalidate`; `assets/*` one day fresh, then `stale-while-revalidate` for a week
   (file names are not content-hashed).
-- `/health/ready` → `{"service":"terranimus-chua","commit":"<sha>"}`.
+- `/chua/health/ready` → `{"service":"terranimus-chua","commit":"<sha>"}`.
 
 What the page talks to: only itself and Google Fonts (`fonts.googleapis.com`, `fonts.gstatic.com`). No analytics,
 no trackers, no API calls. The visitor's dharma name is kept in their own browser (`localStorage`) and never sent.
@@ -46,14 +53,17 @@ node scripts/chua-deploy.mjs --dry-run    # lists the files and the CSP, touches
 node scripts/chua-deploy.mjs              # commit first: refuses a dirty tree
 ```
 
-The script gates on the vault, uploads the assets and the Worker through the Cloudflare API, attaches the custom
-domain (refusing if another DNS record already holds the name), then checks live: health names this commit, the page
-carries the CSP and HSTS, `/live/*`, `/README.md`, `/.git/config` and the scripts answer 404.
+The script gates on the vault, uploads the assets and the Worker through the Cloudflare API, keeps the custom domain
+`chua.terranimus.com` (refusing if another DNS record already holds the name) and the two routes on Tử Vi's name
+(refusing a route held by another script), then checks live: health names this commit, the page carries the CSP and
+HSTS, `/chua` redirects to `/chua/`, `/chua/live/*`, `/chua/README.md`, `/chua/.git/config` and the scripts answer 404,
+`chua.terranimus.com` redirects, and Tử Vi's own `/health/ready` still answers from Tử Vi.
 
 If you change `index.html`, just redeploy: the CSP hashes are recomputed from the file. An external `<script src>` or
 an inline `on…=` handler makes the deploy refuse until it is reviewed.
 
-**Taking it down:** delete the Worker `chua` (and its custom domain) in the Cloudflare dashboard; nothing else uses it.
+**Taking it down:** delete the two routes `tuvi.terranimus.com/chua*` first (then `/chua` falls through to Tử Vi), then
+the Worker `chua` and its custom domain. Nothing else uses them.
 
 ## Pulling upstream changes
 
@@ -69,15 +79,17 @@ Read the diff of `index.html` and `assets/` before redeploying (any new network 
 - The block commented "lantern ambience" at the end of the page script is obfuscated; decoded, it only paints the
   author's credit ("✦ Mã nguồn được chia sẻ bởi Kent Juno ✦") on the canvas for about seven seconds every five to ten
   minutes. It makes no network call. Kept as it is: it is the author's credit.
-- The gift buttons ("Cánh sen 1 coin" … "Thỉnh chuông 99 coins") and the merit board are a **simulation** of TikTok
-  gifts (the entry text says so). No money moves; there is no payment code.
-- The upstream README below has the author's own bank account under "Ủng hộ tác giả". It is **not** on the website.
-- Asset licences: images made with Google Flow, music with Gemini (upstream's statement); check those services'
-  terms before any commercial use.
+- Upstream's offering buttons imitate TikTok gifts with "coin" amounts. Here they are plain offerings (cánh sen, dâng
+  hương, hoa sen, thỉnh chuông) with no amounts; the variable names inside the script still say `coins` (a weight for
+  the effects and the board's order, never shown). There is no payment code.
+- Upstream's README asks for support to the author's own bank account; that section is removed from the copy below
+  (the owner, 2 Nov 2026). Anyone who wants to thank the author can find them through the original repository.
+- Asset licences: images made with Google Flow, music with Gemini (upstream's statement). Accepted by the owner because
+  the temple is free and never charges (2 Nov 2026).
 
 ---
 
-# Upstream README (kentjuno/chanh-dien-online)
+# Upstream README (kentjuno/chanh-dien-online, support section removed)
 
 # Chánh Điện Tịnh Tâm
 
@@ -151,20 +163,6 @@ Tác giả **không liên quan, không bảo trợ và không chịu trách nhi�
 Việc sử dụng mã nguồn đồng nghĩa với việc bạn đã đọc và đồng ý với các điều trên.
 
 > **Disclaimer (EN):** This project is shared free of charge for educational purposes only and is provided "AS IS", without warranty of any kind. Anyone who uses, modifies or redistributes it is solely responsible for their own content, streams, donations, compliance with TikTok and other platforms' terms, and applicable laws. The author is not affiliated with, does not endorse, and accepts no liability for any channel, account, product or activity built with this code, nor for any direct or indirect damages.
-
-## Ủng hộ tác giả
-
-Dự án chia sẻ miễn phí. Nếu thấy hữu ích và muốn góp chút công đức để tác giả duy trì và làm thêm tính năng, bạn có thể chuyển khoản:
-
-| | |
-|---|---|
-| Ngân hàng | **MB Bank** |
-| Số tài khoản | **999979798886** |
-| Chủ tài khoản | **HUYNH HUU NHAN** |
-
-![QR chuyển khoản MB Bank](https://img.vietqr.io/image/MB-999979798886-compact2.png?accountName=HUYNH%20HUU%20NHAN&addInfo=Ung%20ho%20Chanh%20Dien%20Online)
-
-Xin cảm ơn và chúc bạn thân tâm an lạc. Nam mô A Di Đà Phật.
 
 ## Giấy phép
 

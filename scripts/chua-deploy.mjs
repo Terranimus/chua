@@ -23,7 +23,11 @@ import { execFileSync } from 'node:child_process'
 import { vaultGate } from './lib/vault-gate.mjs'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
-const HOST = 'chua.terranimus.com'
+const HOST = 'chua.terranimus.com' // the first address; now only redirects to the tab
+const PUBLIC_HOST = 'tuvi.terranimus.com'
+const BASE = '/chua'
+const ROUTES = [`${PUBLIC_HOST}${BASE}`, `${PUBLIC_HOST}${BASE}/*`]
+const SITE = `https://${PUBLIC_HOST}${BASE}`
 const SCRIPT = 'chua'
 const DRY = process.argv.includes('--dry-run')
 
@@ -111,7 +115,7 @@ console.log(`CSP: ${csp}`)
 
 if (DRY) {
   for (const f of files) console.log(`  ${f.path} ${f.size} B`)
-  console.log(`[dry run] would upload ${files.length} assets and the Worker "${SCRIPT}", attach ${HOST}`)
+  console.log(`[dry run] would upload ${files.length} assets and the Worker "${SCRIPT}", attach ${HOST} (redirect), routes ${ROUTES.join(', ')}`)
   process.exit(0)
 }
 if (dirty) { console.error('chua-deploy: the working tree has uncommitted changes; commit first so the live commit is real'); process.exit(1) }
@@ -151,6 +155,8 @@ const metadata = {
     { type: 'assets', name: 'ASSETS' },
     { type: 'plain_text', name: 'CSP', text: csp },
     { type: 'plain_text', name: 'COMMIT', text: commit },
+    { type: 'plain_text', name: 'PUBLIC_HOST', text: PUBLIC_HOST },
+    { type: 'plain_text', name: 'BASE', text: BASE },
   ],
 }
 const fd = new FormData()
@@ -170,29 +176,47 @@ if (!(domains || []).some((d) => d.hostname === HOST && d.service === SCRIPT)) {
   console.log(`custom domain ${HOST} attached`)
 } else console.log(`custom domain ${HOST} already attached`)
 
-// 4. Live checks.
+// 4. The tab: Worker routes for /chua and /chua/* on TuVi's name (more specific than TuVi's own tuvi.terranimus.com/*,
+// so only these paths reach this Worker). A route held by another script is refused, never taken over.
+const routes = await cf('GET', `/zones/${env.CF_ZONE_ID}/workers/routes`)
+for (const pattern of ROUTES) {
+  const r = routes.find((x) => x.pattern === pattern)
+  if (r && r.script !== SCRIPT) { console.error(`chua-deploy: route ${pattern} belongs to ${r.script}; refusing`); process.exit(1) }
+  if (!r) { await cf('POST', `/zones/${env.CF_ZONE_ID}/workers/routes`, { pattern, script: SCRIPT }); console.log(`route ${pattern}: created`) }
+  else console.log(`route ${pattern}: present`)
+}
+
+// 5. Live checks.
 async function live() {
-  const h = await fetch(`https://${HOST}/health/ready`, { cache: 'no-store' })
+  const h = await fetch(`${SITE}/health/ready`, { cache: 'no-store' })
   const hj = await h.json().catch(() => ({}))
   if (!(h.status === 200 && hj.service === 'terranimus-chua' && hj.commit === commit)) return `health ${h.status} ${String(hj.commit || '').slice(0, 12)}`
-  const page = await fetch(`https://${HOST}/`)
+  const page = await fetch(`${SITE}/`)
   const body = await page.text()
-  if (page.status !== 200 || !body.includes('Chánh Điện Online')) return `/ ${page.status}`
-  if (page.headers.get('content-security-policy') !== csp) return '/ CSP missing or stale'
-  if (!page.headers.get('strict-transport-security')) return '/ HSTS missing'
-  for (const p of ['/live/', '/live/server.mjs', '/live/overlay.html', '/live/control.html', '/live/package.json', '/README.md', '/LICENSE', '/.git/config', '/scripts/chua-deploy.mjs']) {
-    const r = await fetch(`https://${HOST}${p}`)
-    if (r.status !== 404) return `${p} answered ${r.status}, expected 404`
+  if (page.status !== 200 || !body.includes('Chánh Điện Online')) return `${BASE}/ ${page.status}`
+  if (page.headers.get('content-security-policy') !== csp) return `${BASE}/ CSP missing or stale`
+  if (!page.headers.get('strict-transport-security')) return `${BASE}/ HSTS missing`
+  const bare = await fetch(SITE, { redirect: 'manual' })
+  if (bare.status !== 301 || !(bare.headers.get('location') || '').endsWith(`${BASE}/`)) return `${BASE} answered ${bare.status}, expected 301 to ${BASE}/`
+  for (const p of ['/live/', '/live/server.mjs', '/live/overlay.html', '/live/control.html', '/live/package.json', '/README.md', '/LICENSE', '/_headers', '/.git/config', '/scripts/chua-deploy.mjs']) {
+    const r = await fetch(`${SITE}${p}`)
+    if (r.status !== 404) return `${BASE}${p} answered ${r.status}, expected 404`
   }
-  const a = await fetch(`https://${HOST}/assets/hall.jpg`, { method: 'HEAD' })
-  if (a.status !== 200 || !/max-age=86400/.test(a.headers.get('cache-control') || '')) return `/assets/hall.jpg ${a.status} ${a.headers.get('cache-control')}`
+  const a = await fetch(`${SITE}/assets/hall.jpg`, { method: 'HEAD' })
+  if (a.status !== 200 || !/max-age=86400/.test(a.headers.get('cache-control') || '')) return `${BASE}/assets/hall.jpg ${a.status} ${a.headers.get('cache-control')}`
+  const old = await fetch(`https://${HOST}/assets/hall.jpg`, { redirect: 'manual' })
+  if (old.status !== 301 || old.headers.get('location') !== `${SITE}/assets/hall.jpg`) return `${HOST} answered ${old.status} ${old.headers.get('location')}, expected 301 to the tab`
+  // TuVi itself must still answer from TuVi.
+  const t = await fetch(`https://${PUBLIC_HOST}/health/ready`, { cache: 'no-store' })
+  const tj = await t.json().catch(() => ({}))
+  if (tj.service !== 'terranimus-tuvi') return `TuVi /health/ready answered ${t.status} ${tj.service || ''}: STOP and check the routes`
   return null
 }
 let last = ''
 for (let i = 0; i < 30; i++) {
   await new Promise((r) => setTimeout(r, 4000))
   try { last = await live() } catch (e) { last = e.message }
-  if (last === null) { console.log(`chua-deploy: ok (https://${HOST} on ${commit.slice(0, 12)}; live/ answers 404)`); process.exit(0) }
+  if (last === null) { console.log(`chua-deploy: ok (${SITE}/ on ${commit.slice(0, 12)}; live/ answers 404; ${HOST} redirects; TuVi untouched)`); process.exit(0) }
   if (i % 3 === 0) console.log(`waiting: ${last}`)
 }
 console.error(`chua-deploy: live checks did not pass in two minutes (${last})`)
