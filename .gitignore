@@ -5,3 +5,6 @@ live/tts/
 .env.*
 .DS_Store
 Thumbs.db
+.vault/
+.deploy/
+.claude/settings.local.json

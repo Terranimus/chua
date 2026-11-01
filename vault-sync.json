@@ -1,0 +1,5 @@
+{
+  "project": "chua",
+  "environment": "production",
+  "actions": ["deploy"]
+}

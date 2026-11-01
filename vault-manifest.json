@@ -1,0 +1,19 @@
+{
+  "version": 2,
+  "_comment": "Chùa (chua.terranimus.com): the static web temple as a Cloudflare Worker with static assets (2 Nov 2026). deploy uploads index.html and assets/ (never live/) through the Cloudflare API and attaches the custom domain. Values never live here: vault-sync pull writes the gitignored .env.chua-cf.",
+  "actions": {
+    "deploy": ["Terranimus Cloudflare"]
+  },
+  "files": [
+    {
+      "path": ".env.chua-cf",
+      "kind": "env",
+      "actions": ["deploy"],
+      "keys": {
+        "CF_API_TOKEN": { "record": "Terranimus Cloudflare", "field": "api token" },
+        "CF_ACCOUNT_ID": { "record": "Terranimus Cloudflare", "field": "account id" },
+        "CF_ZONE_ID": { "record": "Terranimus Cloudflare", "field": "zone id" }
+      }
+    }
+  ]
+}
