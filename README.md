@@ -13,7 +13,7 @@ to the author stays on the page ("Thực hiện bởi Kent Juno", linked to the 
 
 | Path | Published | Why |
 |---|---|---|
-| `index.html` | yes | the temple page. Changes from upstream: the credit links to the original repository; a line says the page does not represent any temple or religious organisation; the offering buttons carry no "coin" amounts, the merit board shows names only, and the entry text says the offerings are free; `og:image` is absolute |
+| `index.html` | yes | the temple page. Changes from upstream: the credit links to the original repository; a line says the page does not represent any temple or religious organisation; the offering buttons carry no "coin" amounts, the merit board shows names only, and the entry text says the offerings are free; `og:image` is absolute; **your own figure can stand up and sit down** (button "Đứng lên / Ngồi xuống") and **move between cushions** (tap a free cushion, or the arrow keys; free cushions glow while you stand; moving keeps your posture, walking by the aisle between rows) |
 | `assets/` | yes | images (made with Google Flow) and music (made with Gemini), per the upstream README |
 | `live/` | **never** | the TikTok LIVE kit: a Node server meant to run on the streamer's own machine, bound to 127.0.0.1. It is not uploaded, so `https://tuvi.terranimus.com/chua/live/*` answers 404 |
 | everything else | no | `scripts/chua-deploy.mjs` uploads an allow-list (index.html + assets/ media files) and refuses unknown file types |

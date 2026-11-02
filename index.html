@@ -94,6 +94,7 @@ input::placeholder{color:#7d6a52}
     <span class="row">
       <button class="btn" id="nextTrack" hidden title="Bài kế tiếp"><span id="nowPlaying">♪</span> ›</button>
       <button class="btn" id="mute" hidden aria-pressed="false">Tắt nhạc</button>
+      <button class="btn" id="pose" hidden aria-pressed="false">Đứng lên</button>
       <button class="btn" id="leave" hidden>Rời</button>
     </span>
   </div>
@@ -112,7 +113,7 @@ input::placeholder{color:#7d6a52}
       </div>
       <div class="row">
         <button type="submit" class="btn primary">Vào chánh điện</button>
-        <span class="hint">Chạm vào chánh điện để tụng một câu.</span>
+        <span class="hint">Khi đã vào: chạm chánh điện để tụng một câu, chạm bồ đoàn trống (hoặc phím mũi tên) để đổi chỗ, nút Đứng lên / Ngồi xuống ở dưới.</span>
       </div>
       <div class="row">
         <span class="hint">Thực hiện bởi Kent Juno · <a href="https://github.com/kentjuno/chanh-dien-online" rel="noopener">mã nguồn mở (MIT)</a>. Trang cộng đồng, không đại diện cho chùa hay tổ chức tôn giáo nào.</span>
@@ -173,6 +174,7 @@ function freeSeat(){ return seats.find(s=>!s.taken) || null; }
 function addVisitor(name, skin, instant, isMe){
   const seat = freeSeat(); if(!seat) return null;
   const v = { name, skin, seat, x: instant?seat.x:DOOR.x, y: instant?seat.y:DOOR.y, state: instant?'sit':'walk', t:0, frame: 7, ft:0, sitT:-1, flip:false, fade: instant?1:0, bob:0, bow:0, glow:0, coins:0, isMe:!!isMe, phase:Math.random()*6.28 };
+  if (!instant){ v.path = [{x:SW/2,y:seat.y},{x:seat.x,y:seat.y}]; v.autoSit = true; }
   seat.taken = v; visitors.push(v); updateCount(); return v;
 }
 function removeVisitor(v){ if(!v) return; v.seat.taken=null; visitors.splice(visitors.indexOf(v),1); updateCount(); }
@@ -285,14 +287,58 @@ form.addEventListener('submit', e=>{
   audioStart();
   me = addVisitor(name, mySkin, false, true);
   gate.hidden=true; document.getElementById('me').hidden=false; document.getElementById('meName').textContent=name;
-  for (const id of ['mute','leave','gifts','nextTrack']) document.getElementById(id).hidden=false;
+  for (const id of ['mute','pose','leave','gifts','nextTrack']) document.getElementById(id).hidden=false;
   say(name,' đã vào chánh điện'); showToast('Hoan nghênh '+name+' vào chánh điện'); ttsSpeak('Hoan nghênh '+name+' vào chánh điện');
 });
 document.getElementById('gifts').addEventListener('click', e=>{ const b=e.target.closest('button'); if(!b||!me) return; donate(me, +b.dataset.coins, b.dataset.fx, SUTRA[Math.floor(Math.random()*SUTRA.length)]); });
 document.getElementById('nextTrack').addEventListener('click', ()=>{ if(AC) playTrack(trackIdx+1); });
 document.getElementById('mute').addEventListener('click', e=>{ muted=!muted; if(master) master.gain.value=muted?0:.8; e.currentTarget.textContent=muted?'Bật nhạc':'Tắt nhạc'; e.currentTarget.setAttribute('aria-pressed',muted); });
-document.getElementById('leave').addEventListener('click', ()=>{ removeVisitor(me); me=null; gate.hidden=false; document.getElementById('me').hidden=true; for (const id of ['mute','leave','gifts','nextTrack']) document.getElementById(id).hidden=true; for (const m of musicEls){ try{m.el.pause();}catch(e){} } musicEls=[]; if (AC){ AC.close(); AC=null; } clearInterval(mokTimer); clearInterval(bellTimer); renderBoard(); });
-canvas.addEventListener('pointerdown', ()=>{ if(!me||me.state!=='sit') return; const s=SUTRA[Math.floor(Math.random()*SUTRA.length)]; say(me.name,' '+s); me.bow=1; floaters.push({x:me.seat.x,y:me.seat.y-80,vx:0,vy:-70,t:0,life:2,s:.14}); });
+document.getElementById('leave').addEventListener('click', ()=>{ removeVisitor(me); me=null; gate.hidden=false; document.getElementById('me').hidden=true; for (const id of ['mute','pose','leave','gifts','nextTrack']) document.getElementById(id).hidden=true; for (const m of musicEls){ try{m.el.pause();}catch(e){} } musicEls=[]; if (AC){ AC.close(); AC=null; } clearInterval(mokTimer); clearInterval(bellTimer); renderBoard(); });
+/* ---- your own figure: stand up, sit down, move between cushions ----
+   States: walk → sitting (frames 4-7) → sit; sit → rising (frames 7-4) → stand (frame 4, on the cushion).
+   Moving keeps your posture: seated you walk over and sit down again, standing you stay standing. */
+const poseBtn = document.getElementById('pose');
+function syncPose(){
+  if (!me) return; const busy = me.state==='walk'||me.state==='sitting'||me.state==='rising';
+  const up = me.state==='stand' || (busy && !me.autoSit);
+  poseBtn.textContent = up ? 'Ngồi xuống' : 'Đứng lên'; poseBtn.setAttribute('aria-pressed', up); poseBtn.disabled = busy;
+}
+function sitDown(){ if (me && me.state==='stand'){ me.state='sitting'; me.sitT=0; syncPose(); } }
+function standUp(){ if (me && me.state==='sit'){ me.state='rising'; me.sitT=0; me.next=null; syncPose(); } }
+function pathTo(v, seat){
+  if (Math.abs(v.y-seat.y) < 3) return [{x:seat.x,y:seat.y}];                       // same row: step sideways
+  return [{x:SW/2,y:v.y},{x:SW/2,y:seat.y},{x:seat.x,y:seat.y}];                    // other row: by the aisle
+}
+function moveTo(seat){
+  if (!me || !seat || seat.taken || !(me.state==='sit'||me.state==='stand')) return;
+  const keepSeated = me.state==='sit';
+  me.seat.taken = null; seat.taken = me; me.seat = seat;
+  const go = ()=>{ me.path = pathTo(me, seat); me.autoSit = keepSeated; me.state='walk'; me.frame=0; me.ft=0; syncPose(); };
+  if (keepSeated){ me.state='rising'; me.sitT=0; me.next=go; syncPose(); } else go();
+}
+poseBtn.addEventListener('click', ()=>{ if (!me) return; if (me.state==='sit') standUp(); else if (me.state==='stand') sitDown(); });
+function stagePoint(e){ const r=canvas.getBoundingClientRect(); return { x:(e.clientX-r.left)/r.width*SW, y:(e.clientY-r.top)/r.height*SH }; }
+function freeSeatAt(pt){
+  let best=null, bd=Infinity;
+  for (const s of seats){ if (s.taken) continue; const d=Math.hypot(pt.x-s.x, (pt.y-(s.y-40*s.scale))*0.8); const reach=90*s.scale+45; if (d<reach && d<bd){ bd=d; best=s; } }
+  return best;
+}
+canvas.addEventListener('pointerdown', e=>{
+  if (!me) return;
+  const seat = freeSeatAt(stagePoint(e));
+  if (seat && (me.state==='sit'||me.state==='stand')) { moveTo(seat); return; }
+  if (me.state!=='sit') return;
+  const s=SUTRA[Math.floor(Math.random()*SUTRA.length)]; say(me.name,' '+s); me.bow=1; floaters.push({x:me.seat.x,y:me.seat.y-80,vx:0,vy:-70,t:0,life:2,s:.14});
+});
+// arrow keys: the nearest free cushion in that direction
+document.addEventListener('keydown', e=>{
+  if (!me || !gate.hidden || e.target.closest && e.target.closest('input,textarea')) return;
+  const dir = {ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]}[e.key]; if (!dir) return;
+  e.preventDefault();
+  let best=null, bd=Infinity;
+  for (const s of seats){ if (s.taken) continue; const dx=s.x-me.seat.x, dy=(s.y-me.seat.y)*1.6; const along=dx*dir[0]+dy*dir[1]; if (along<=8) continue; const across=Math.abs(dx*dir[1])+Math.abs(dy*dir[0]); const d=along+across*2.5; if (d<bd){ bd=d; best=s; } }
+  if (best) moveTo(best);
+});
 // demo activity: random comments and small gifts from the crowd
 setInterval(()=>{ if (visitors.length<2) return; const v=visitors[Math.floor(Math.random()*visitors.length)]; if (v===me) return;
   if (Math.random()<.3) donate(v, [1,1,5,20][Math.floor(Math.random()*4)], ['petal','petal','incense','lotus'][Math.floor(Math.random()*4)], '');
@@ -327,25 +373,42 @@ function tick(now){
   ctx.restore();
   // candle flicker overlay
   ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=.06+.04*Math.sin(t*9)*Math.sin(t*13.3); ctx.fillStyle='#ffb347'; ctx.fillRect(0,300,SW,900); ctx.restore();
+  // free cushions glow while you are standing or walking, so you can see where to go
+  if (me && me.state!=='sit' && me.state!=='sitting'){
+    ctx.save(); ctx.globalCompositeOperation='lighter';
+    for (const s of seats){ if (s.taken) continue; const a=.75+.25*Math.sin(t*2.6+s.x*.01), rx=150*s.scale+12, ry=46*s.scale+5;
+      ctx.globalAlpha=.35*a; ctx.fillStyle='#ffc766'; ctx.beginPath(); ctx.ellipse(s.x, s.y-10*s.scale, rx, ry, 0, 0, 6.283); ctx.fill();
+      ctx.globalAlpha=.9*a; ctx.strokeStyle='#ffd98a'; ctx.lineWidth=3; ctx.stroke(); }
+    ctx.restore();
+  }
   // visitors, back to front
   const order=[...visitors].sort((a,b)=>a.y-b.y);
   for (const v of order){
     const anim = hasAnim(v.skin);
     if (v.state==='walk'){
-      if (!anim){ v.x=v.seat.x; v.y=v.seat.y; v.state='sit'; }        // no strip for this skin yet: appear in place
+      if (!anim){ v.x=v.seat.x; v.y=v.seat.y; v.state='sit'; v.path=null; }      // no strip for this skin yet: appear in place
       else {
-        // walk up the aisle first, then step sideways into the row; speed in stage px/s scales with depth
+        // follow the path (aisle first); speed in stage px/s scales with depth
         const depth = (v.y-FLOOR.yTop)/(FLOOR.yBot-FLOOR.yTop), sp = (150+170*Math.max(0,Math.min(1.4,depth)))*dt;
-        const dx=v.seat.x-v.x, dy=v.seat.y-v.y;
-        if (Math.abs(dy)>3){ v.y += Math.max(-sp, Math.min(sp, dy)); v.x += (SW/2-v.x)*Math.min(1,dt*6); v.flip=false; }
-        else { v.x += Math.max(-sp, Math.min(sp, dx)); v.flip = dx<0; }
+        const wp = (v.path && v.path[0]) || {x:v.seat.x, y:v.seat.y};
+        const dx=wp.x-v.x, dy=wp.y-v.y;
+        v.x += Math.max(-sp, Math.min(sp, dx)); v.y += Math.max(-sp, Math.min(sp, dy));
+        if (Math.abs(dx) > Math.abs(dy)+1) v.flip = dx<0; else v.flip = false;
         v.ft += dt; if (v.ft > .16){ v.ft = 0; v.frame = (v.frame+1)%4; }      // ~6 fps walk cycle
-        if (Math.abs(v.x-v.seat.x)<2 && Math.abs(v.y-v.seat.y)<3){ v.x=v.seat.x; v.y=v.seat.y; v.state='sitting'; v.sitT=0; v.flip=false; }
+        if (Math.abs(v.x-wp.x)<2 && Math.abs(v.y-wp.y)<2){ v.x=wp.x; v.y=wp.y; if (v.path) v.path.shift(); }
+        if (!v.path || !v.path.length){
+          v.x=v.seat.x; v.y=v.seat.y; v.flip=false; v.path=null;
+          if (v.autoSit===false){ v.state='stand'; v.frame=4; } else { v.state='sitting'; v.sitT=0; }
+          if (v.isMe) syncPose();
+        }
       }
     } else if (v.state==='sitting'){
       v.sitT += dt; v.frame = 4 + Math.min(3, Math.floor(v.sitT/.22));        // 4 frames ≈ 0.9 s to sit down
-      if (v.sitT > .9){ v.state='sit'; v.frame=7; if (v.isMe) showToast('Đã an tọa. Nam mô A Di Đà Phật.'); }
-    }
+      if (v.sitT > .9){ v.state='sit'; v.frame=7; if (v.isMe){ showToast('Đã an tọa. Nam mô A Di Đà Phật.'); syncPose(); } }
+    } else if (v.state==='rising'){
+      v.sitT += dt; v.frame = 7 - Math.min(3, Math.floor(v.sitT/.2));         // the same frames backwards ≈ 0.8 s
+      if (v.sitT > .8){ v.state='stand'; v.frame=4; const n=v.next; v.next=null; if (n) n(); else if (v.isMe){ showToast('Chạm vào bồ đoàn trống để đi tới.'); syncPose(); } }
+    } else if (v.state==='stand'){ v.frame=4; }
     v.fade = Math.min(1, v.fade + dt*2);
     const sc = v.state==='walk' ? (.22+.33*((v.y-FLOOR.yTop)/(FLOOR.yBot-FLOOR.yTop))) : v.seat.scale;
     const s = Math.max(.2, Math.min(.75, sc));
