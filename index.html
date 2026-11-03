@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="description" content="Chánh điện online: nhập pháp danh, an tọa tụng kinh cùng mọi người, nghe nhạc thiền.">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#0c0705">
 <meta property="og:title" content="Tịnh Tâm · Chánh Điện Online">
 <meta property="og:image" content="https://tuvi.terranimus.com/chua/assets/hall.jpg">
@@ -19,11 +21,14 @@
   color-scheme:dark;
 }
 html,body{height:100%;margin:0}
+body::before{content:'';position:fixed;inset:0;background:#0c0705 url(assets/hall.jpg) center/cover;filter:blur(28px) brightness(.45);transform:scale(1.1);z-index:-1}
 body{background:var(--bg);color:var(--fg);font-family:var(--body);overflow:hidden;
   padding-left:max(0px,env(safe-area-inset-left,0px));padding-right:max(0px,env(safe-area-inset-right,0px))}
 #wrap{position:fixed;inset:0;display:grid;place-items:center;padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)}
 #stage{position:relative;aspect-ratio:9/16;height:100%;max-width:100%;max-height:100%;overflow:hidden;background:#000;box-shadow:0 0 80px rgba(0,0,0,.8)}
 @media (max-aspect-ratio:9/16){#stage{width:100%;height:auto}}
+body.wide #stage{aspect-ratio:16/9;width:min(100vw,calc(100dvh*16/9));height:auto;max-width:none;max-height:none}
+body.wide::before{background-image:url(assets/hall-wide.jpg)}
 #stage canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:manipulation}
 /* HUD lives inside the stage so it matches the 9:16 stream frame */
 .hud{position:absolute;z-index:5;pointer-events:none;display:flex;gap:8px;align-items:center}
@@ -48,9 +53,8 @@ button{font:inherit;cursor:pointer}
 #board ol{margin:0;padding-left:18px;display:grid;gap:2px}
 #board li span{float:right;color:var(--muted);font-variant-numeric:tabular-nums;margin-left:8px}
 /* chat feed (left, like a live) */
-#feed{position:absolute;left:10px;bottom:74px;z-index:4;width:48%;max-width:230px;display:flex;flex-direction:column;gap:5px;pointer-events:none;
-  -webkit-mask-image:linear-gradient(to bottom,transparent,#000 25%);mask-image:linear-gradient(to bottom,transparent,#000 25%)}
-.msg{background:rgba(0,0,0,.45);border-radius:10px;padding:5px 9px;font-size:12px;line-height:1.35;max-width:100%;min-width:0;overflow-wrap:anywhere;animation:in .35s ease-out}
+#feed{position:absolute;left:10px;top:52px;z-index:4;width:calc(100% - 190px);max-width:260px;display:flex;flex-direction:column;gap:4px;pointer-events:none}
+.msg{background:rgba(0,0,0,.45);border-radius:10px;padding:4px 8px;font-size:11px;line-height:1.35;max-width:100%;min-width:0;overflow-wrap:anywhere;animation:in .35s ease-out}
 .msg b{color:var(--gold);font-weight:600}
 .msg.gift{background:rgba(138,42,30,.6);border:1px solid rgba(217,164,65,.5)}
 @keyframes in{from{opacity:0;transform:translateY(6px)}}
@@ -76,8 +80,10 @@ input::placeholder{color:#7d6a52}
 #toast{position:absolute;left:50%;top:14%;transform:translateX(-50%);z-index:6;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:9px 15px;font-family:var(--display);color:var(--gold);font-size:14px;opacity:0;transition:opacity .4s;pointer-events:none;max-width:88%;text-align:center}
 #toast.show{opacity:1}
 @media (prefers-reduced-motion:reduce){#toast,.msg{transition:none;animation:none}}
+@media (max-width:520px){#bottom{gap:6px;bottom:6px;flex-wrap:wrap;justify-content:center;left:6px;right:6px}#gifts{gap:4px;flex:0 0 auto}.btn.gift{min-width:0;width:38px;height:34px;padding:0;border-radius:50%;justify-content:center}.btn.gift b{font-size:0}.btn.gift::before{font-size:17px;line-height:1}.btn.gift[data-fx=petal]::before{content:"🌸"}.btn.gift[data-fx=incense]::before{content:"🪔"}.btn.gift[data-fx=lotus]::before{content:"🪷"}.btn.gift[data-fx=bell]::before{content:"🔔"}#bottom .row{flex:1 1 auto;justify-content:flex-end;gap:4px;flex-wrap:nowrap}.btn{padding:6px 9px;font-size:11px;white-space:nowrap}#nextTrack{font-size:0;padding:6px 10px}#nextTrack::before{content:"♪ ›";font-size:12px}}
 </style>
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}*{box-sizing:border-box}body{margin:0;font-size:14px}[hidden]{display:none!important}</style>
+<link rel="stylesheet" href="room.css?v=cbad2a7dde">
 </head>
 <body>
 
@@ -116,13 +122,16 @@ input::placeholder{color:#7d6a52}
         <button type="button" data-skin="man" aria-pressed="true">Nam áo lam</button>
         <button type="button" data-skin="woman" aria-pressed="false">Nữ áo lam</button>
         <button type="button" data-skin="granny" aria-pressed="false">Áo nâu</button>
+        <button type="button" data-skin="monk" aria-pressed="false">Tăng sĩ</button>
+        <button type="button" data-skin="nun" aria-pressed="false">Ni cô</button>
+        <button type="button" data-skin="child" aria-pressed="false">Em bé</button>
       </div>
       <div class="row">
         <button type="submit" class="btn primary">Vào chánh điện</button>
-        <span class="hint">Khi đã vào: chạm chánh điện để tụng một câu, chạm bồ đoàn trống (hoặc phím mũi tên) để đổi chỗ, nút Đứng lên / Ngồi xuống ở dưới. Nút ♪ đổi nhạc: Nhạc thiền, Đàn tranh, Chú Đại Bi.</span>
+        <span class="hint" id="enterHint">Khi đã vào: chạm chánh điện để tụng một câu, chạm bồ đoàn trống (hoặc phím mũi tên) để đổi chỗ, nút Đứng lên / Ngồi xuống ở dưới.</span>
       </div>
       <div class="row">
-        <span class="hint">Thực hiện bởi Kent Juno · <a href="https://github.com/kentjuno/chanh-dien-online" rel="noopener">mã nguồn mở (MIT)</a>. Trang cộng đồng, không đại diện cho chùa hay tổ chức tôn giáo nào.</span>
+        <span class="hint" id="credit">Thực hiện bởi Kent Juno · <a href="https://github.com/kentjuno/chanh-dien-online" rel="noopener">mã nguồn mở (MIT)</a>. Trang cộng đồng, không đại diện cho chùa hay tổ chức tôn giáo nào.</span>
       </div>
       <div class="row">
         <span class="hint" id="voiceInfo">Đang tìm giọng đọc tiếng Việt…</span>
@@ -136,15 +145,20 @@ input::placeholder{color:#7d6a52}
    2.5D hall: painted 9:16 background (Flow) + sprites on canvas.
    Stage space is 1080x1920; everything below is in that space.
    ========================================================== */
-const SW = 1080, SH = 1920;
+/* Two halls: a portrait one (phones) and a wide one (tablets and computers, full width). The page reloads if the shape of the window changes class. */
+const WIDE = innerWidth / innerHeight >= 1.25;
+document.body.classList.toggle('wide', WIDE);
+try { matchMedia('(min-aspect-ratio: 5/4)').addEventListener('change', e=>{ if (e.matches !== WIDE) setTimeout(()=>location.reload(), 500); }); } catch(_){}
+const SW = WIDE ? 1920 : 1080, SH = WIDE ? 1080 : 1920;
 const canvas = document.getElementById('c'), ctx = canvas.getContext('2d');
 const A = {};   // loaded images
 const ASSETS = {
-  hall:'assets/hall.jpg',
+  hall: WIDE ? 'assets/hall-wide.jpg' : 'assets/hall.jpg',
   monk:'assets/c_monk.png', nun:'assets/c_nun.png', granny:'assets/c_granny.png', man:'assets/c_man.png', woman:'assets/c_woman.png', child:'assets/c_child.png',
   anim_man:'assets/anim_man.png', anim_woman:'assets/anim_woman.png', anim_granny:'assets/anim_granny.png',
   lotus:'assets/fx_lotus.png', halo:'assets/fx_halo.png', bell:'assets/fx_bell.png', incense:'assets/fx_incense.png', petal:'assets/fx_petal.png', mo:'assets/fx_mo.png', banner:'assets/fx_banner.png', scroll:'assets/fx_scroll.png',
 };
+if (WIDE) ASSETS.hall_night = 'assets/hall-wide-night.jpg';
 let loaded = 0; const total = Object.keys(ASSETS).length;
 for (const [k,src] of Object.entries(ASSETS)) { const im = new Image(); im.onload = ()=>{ loaded++; }; im.onerror = ()=>{ loaded++; console.warn('missing', src); }; im.src = src; A[k] = im; }
 
@@ -155,32 +169,65 @@ const hasAnim = k => ANIM[k] && A['anim_'+k] && A['anim_'+k].naturalWidth > 0;
 
 /* ---- floor layout: the painting's cushions sit on a perspective floor from y≈1180 (back) to y≈1850 (front).
    We define our own seat grid in that trapezoid so sprites scale with depth. ---- */
-const FLOOR = { yTop: 1130, yBot: 1790, xHalfTop: 240, xHalfBot: 400 };   // half-width of the floor at top/bottom rows
-const ROWS = 6, COLS = 6, AISLE = 0.9;                                      // 36 seats, central aisle
+/* The 18 painted cushions of hall.jpg (centres and widths measured on the 1080x1920 painting). A seat IS a cushion, so a tap on a
+   cushion and the sprite that sits there always agree. Rows go back to front; sprite scale follows the cushion width. */
+const FLOOR = WIDE ? { yTop: 740, yBot: 1070 } : { yTop: 1130, yBot: 1790 };   // the walkable floor, for walking speed and size
+const CUSHIONS = [
+  [1248,100,[259,428,653,821]], [1313,120,[195,403,678,886]], [1405,150,[116,368,713,964]],
+  [1535,187,[40,316,765,1035]], [1717,235,[249,832]],
+];
 const seats = [];
-for (let r=0;r<ROWS;r++){
-  const t = (r+.55)/ROWS;                      // 0 back → 1 front
-  const y = FLOOR.yTop + (FLOOR.yBot-FLOOR.yTop)*t;
-  const half = FLOOR.xHalfTop + (FLOOR.xHalfBot-FLOOR.xHalfTop)*t;
-  const scale = .22 + .33*t;                   // sprite scale by depth
-  for (let c=0;c<COLS;c++){
-    let u = (c-(COLS-1)/2)/((COLS-1)/2);       // -1..1
-    u += Math.sign(u)*AISLE/ (COLS-1);         // open the aisle
-    seats.push({ x: SW/2 + u*half, y, scale, r, c, taken:null, order: r*COLS + c });
-  }
-}
+if (WIDE) { // the wide hall has no painted cushions: three rows of six, drawn by code while free
+  [[875,.36],[990,.46]].forEach(([y,s],r)=>{ const sp=480*s; for (let c=0;c<6;c++) seats.push({ x:SW/2+(c-2.5)*sp, y, scale:s, r, c, taken:null, order:seats.length }); });
+} else CUSHIONS.forEach(([y,w,xs],r)=>xs.forEach((x,c)=>seats.push({ x, y, scale:w/370, r, c, taken:null, order:seats.length })));
 // fill from the front rows nearest the aisle first (so the stream always looks full near the camera)
 seats.sort((a,b)=> (b.r-a.r) || (Math.abs(a.x-SW/2)-Math.abs(b.x-SW/2)));
+/* Backgrounds: each room has its own look, graded from the one painted hall on an offscreen canvas. */
+const LOOKS = [
+  { id:'lantern' },
+  { id:'dawn',   op:'soft-light', c:'rgba(120,150,255,.55)', then:{op:'screen', c:'rgba(255,170,150,.14)'} },
+  { id:'gold',   op:'soft-light', c:'rgba(255,214,120,.6)',  then:{op:'screen', c:'rgba(255,200,90,.16)'} },
+  { id:'jade',   op:'multiply',   c:'rgba(150,230,200,.85)', then:{op:'soft-light', c:'rgba(40,150,120,.4)'} },
+  { id:'sunset', op:'soft-light', c:'rgba(255,90,60,.6)',    then:{op:'multiply', c:'rgba(255,200,170,.9)'} },
+];
+if (WIDE) LOOKS.push({ id:'moon', img:'hall_night' });
+const NIGHT = () => !!LOOKS[((look%LOOKS.length)+LOOKS.length)%LOOKS.length].img;
+const lookCache = {};
+let look = 0;
+function hallFor(i){ const L=LOOKS[i%LOOKS.length]; if (L.img) return (A[L.img] && A[L.img].naturalWidth) ? A[L.img] : A.hall; if(!L.op || !(A.hall.complete && A.hall.naturalWidth)) return A.hall; if(lookCache[L.id]) return lookCache[L.id];
+  const c=document.createElement('canvas'); c.width=SW; c.height=SH; const x=c.getContext('2d'); x.drawImage(A.hall,0,0,SW,SH);
+  for(const s of [L,L.then]){ if(!s) continue; x.globalCompositeOperation=s.op; x.fillStyle=s.c; x.fillRect(0,0,SW,SH); }
+  return lookCache[L.id]=c; }
+function setLook(i){ look=((i%LOOKS.length)+LOOKS.length)%LOOKS.length; }
+/* When every cushion is taken the rest of the room stands: spots on the floor between and beside the cushions. */
+const standSpots = [];
+/* Places to stand once the cushions are taken (the room holds 50): laid out so that none sits on a cushion or on another standing place.
+   Candidates on a grid, nearest the middle first; a candidate is kept only if its figure would not overlap a cushion or a kept place. */
+function layoutStanding(rows, xs, want){
+  const sc = y=>{ const k=Math.max(0,Math.min(1,(y-FLOOR.yTop)/(FLOOR.yBot-FLOOR.yTop))); return WIDE ? .24+.18*k : .2+.38*k; };
+  const cand=[]; for (const y of rows) for (const x of xs) cand.push({ x, y, s:sc(y) });
+  cand.sort((a,b)=> (Math.abs(a.x-SW/2)+a.y*.25) - (Math.abs(b.x-SW/2)+b.y*.25));
+  const out=[];
+  for (const c of cand){
+    const hw=138*c.s;                                                                                  // half the width of a standing figure
+    if (seats.some(s=> Math.abs(c.x-s.x) < hw + 185*s.scale && Math.abs(c.y-s.y) < 55)) continue;     // would stand on a cushion
+    if (out.some(o=> Math.abs(c.x-o.x) < hw + 138*o.s*.85 && Math.abs(c.y-o.y) < 34)) continue;       // would stand on another place
+    out.push(c); if (out.length>=want) break;
+  }
+  for (const c of out) standSpots.push({ x:c.x, y:c.y, scale:c.s, stand:true, taken:null, order:seats.length+standSpots.length });
+}
+if (WIDE) layoutStanding(Array.from({length:14},(_,i)=>860+i*15), Array.from({length:36},(_,i)=>50+i*50), 40);
+else layoutStanding(Array.from({length:18},(_,i)=>1170+i*38), Array.from({length:30},(_,i)=>50+i*33), 40);
 const DOOR = { x: SW/2, y: SH + 120 };         // walk in from below the frame
 
 /* ---- visitors ---- */
 const visitors = [], fx = [], floaters = [];
 const SKINS = ['man','woman','granny','man','woman','nun','monk','child'];
 function freeSeat(){ return seats.find(s=>!s.taken) || null; }
-function addVisitor(name, skin, instant, isMe){
-  const seat = freeSeat(); if(!seat) return null;
-  const v = { name, skin, seat, x: instant?seat.x:DOOR.x, y: instant?seat.y:DOOR.y, state: instant?'sit':'walk', t:0, frame: 7, ft:0, sitT:-1, flip:false, fade: instant?1:0, bob:0, bow:0, glow:0, coins:0, isMe:!!isMe, phase:Math.random()*6.28 };
-  if (!instant){ v.path = [{x:SW/2,y:seat.y},{x:seat.x,y:seat.y}]; v.autoSit = true; }
+function addVisitor(name, skin, instant, isMe, forceSeat){
+  const seat = forceSeat || freeSeat(); if(!seat) return null;
+  const v = { name, skin, seat, x: instant?seat.x:DOOR.x, y: instant?seat.y:DOOR.y, state: instant?(seat.stand?'stand':'sit'):'walk', t:0, frame: 7, ft:0, sitT:-1, flip:false, fade: instant?1:0, bob:0, bow:0, glow:0, coins:0, isMe:!!isMe, phase:Math.random()*6.28 };
+  if (!instant){ v.path = [{x:SW/2,y:seat.y},{x:seat.x,y:seat.y}]; v.autoSit = !seat.stand; }
   seat.taken = v; visitors.push(v); updateCount(); return v;
 }
 function removeVisitor(v){ if(!v) return; v.seat.taken=null; visitors.splice(visitors.indexOf(v),1); updateCount(); }
@@ -189,14 +236,14 @@ function updateCount(){ countEl.textContent = visitors.length; }
 
 // demo crowd so the hall never opens empty (replace with live viewers later)
 const DEMO = ['Diệu Hạnh','Minh Tâm','Thiện Đức','Huệ An','Tịnh Nhã','Quảng Trí','Chơn Như','Pháp Hỷ','Nguyên Thanh','Tâm Đăng','Diệu Liên','Trí Hải','Phước Lộc','Hạnh Nguyện','Như Ý','Bảo Châu','Thanh Lương','Từ Tâm','An Lạc','Giác Hoa','Tuệ Minh','Liên Hương'];
-DEMO.forEach((n,i)=>{ const v = addVisitor(n, SKINS[i%SKINS.length], true); v.coins = [120,80,55,30,20,12,8,5][i]||0; });
+DEMO.slice(0, Math.max(0, seats.length-3)).forEach((n,i)=>{ const v = addVisitor(n, SKINS[i%SKINS.length], true); if(!v) return; v.coins = [120,80,55,30,20,12,8,5][i]||0; });
 
 /* ---- audio: Web Audio drone + bell + mõ, no files ---- */
 let AC=null, master=null, muted=false, mokTimer=null, bellTimer=null, me=null, haloPulse=0;
 /* Music: Gemini-made tracks played in order, crossfaded, ducked under TTS. Bell + mõ stay synthesized. */
 const TRACKS = [
-  { src:'assets/music/music1.mp3', name:'Trăng trên rừng trúc' },
-  { src:'assets/music/music2.mp3', name:'Hơi thở ban mai' },
+  { src:'assets/music/music1.mp3', name:'Trăng trên rừng trúc', key:'m1' },
+  { src:'assets/music/music2.mp3', name:'Hơi thở ban mai', key:'m2' },
 ];
 let musicGain=null, musicEls=[], trackIdx=0, duck=1;
 function audioStart(){
@@ -288,7 +335,7 @@ function genStop(){
 }
 function updateNowPlaying(){
   const nt = document.getElementById('nowPlaying'); if (!nt) return;
-  nt.textContent = '♪ ' + CH_LABEL[channel];
+  nt.textContent = '♪ ' + (channel==='thien' ? (window.chuaVoice ? window.chuaVoice.str(TRACKS[trackIdx].key) : TRACKS[trackIdx].name) : CH_LABEL[channel]);
   document.getElementById('nextTrack').title = channel==='thien' ? 'Đang phát: ' + TRACKS[trackIdx].name + '. Bấm để đổi kênh nhạc' : 'Bấm để đổi kênh nhạc';
 }
 function setChannel(ch){
@@ -334,11 +381,12 @@ function chantNext(){
   if (c.line >= c.lines.length){ c.round++; c.lines = DAI_BI.lines; c.line = 0; bell(true); }
   const text = c.lines[c.line], words = text.split(' ');
   c.word = 0; chantRender(); mok();
-  const voice = viVoice && !muted && 'speechSynthesis' in window;
+  let vi = null; try { vi = speechSynthesis.getVoices().filter(v=>/^vi([-_]|$)/i.test(v.lang)).sort((a,b)=>(/natural|online|neural/i.test(b.name)?1:0)-(/natural|online|neural/i.test(a.name)?1:0))[0] || null; } catch(e){}
+  const voice = vi && !muted;
   if (voice){
     let done = false;
     const fin = ()=>{ if (done || chant!==c) return; done = true; clearTimeout(c.timer); c.word = words.length; chantRender(); c.timer = setTimeout(chantNext, 260); };
-    const u = new SpeechSynthesisUtterance(text); u.voice = viVoice; u.lang = viVoice.lang; u.rate = .85; u.pitch = .8;
+    const u = new SpeechSynthesisUtterance(text); u.voice = vi; u.lang = vi.lang; u.rate = .85; u.pitch = .8;
     u.onend = u.onerror = fin;
     u.onboundary = e => { if (chant!==c) return; c.word = text.slice(0, e.charIndex).split(' ').length - 1; chantRender(); };
     speechSynthesis.speak(u);
@@ -359,53 +407,63 @@ function mok(){
   const bp=AC.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value=900; bp.Q.value=4; const g=AC.createGain(); g.gain.setValueAtTime(.18,t); g.gain.exponentialRampToValueAtTime(.001,t+.09);
   o.connect(bp); bp.connect(g); g.connect(master); o.start(t); o.stop(t+.1);
 }
-// Pick a Vietnamese voice explicitly. Setting lang alone is not enough: with no vi voice installed the browser
-// falls back to its default (usually English) voice and reads Vietnamese text with English sounds.
-let viVoice = null, ttsWarned = false;
+// The voice follows the language (room.js owns the language and the spoken lines; Vietnamese when it is absent).
+// Pick a voice of that language explicitly. Setting lang alone is not enough: with none installed the browser
+// falls back to its default voice and reads the text with the wrong sounds.
+const VI_VOICE = { tag:'vi', sys:'Hệ thống', look:'Đang tìm giọng đọc tiếng Việt…', ok:'Giọng đọc: ', none:'Máy này chưa có giọng đọc tiếng Việt: lời nguyện chỉ hiện chữ.', warn:'Máy này chưa có giọng tiếng Việt nên không đọc thành tiếng.', welcome:n=>'Hoan nghênh '+n+' vào chánh điện', gave:(n,l,x)=>n+' dâng '+l+'. '+x, sutra:null };
+const VV = () => (window.chuaVoice ? window.chuaVoice.v() : VI_VOICE);
+let viVoice = null, ttsWarned = false, voiceTag = '';
 function pickViVoice(){
   try {
-    const vs = speechSynthesis.getVoices().filter(v => /^vi([-_]|$)/i.test(v.lang));
+    if (voiceTag !== VV().tag) { voiceTag = VV().tag; ttsWarned = false; }
+    const vs = speechSynthesis.getVoices().filter(v => new RegExp('^'+VV().tag+'([-_]|$)','i').test(v.lang));
     const rank = v => (/natural|online|neural/i.test(v.name)?4:0) + (/hoaimy|namminh/i.test(v.name)?2:0) + (/google/i.test(v.name)?1:0);
     viVoice = vs.sort((a,b)=>rank(b)-rank(a))[0] || null;
   } catch(e){ viVoice = null; }
   const el = document.getElementById('voiceInfo');
-  if (el) el.textContent = viVoice ? 'Giọng đọc: ' + viVoice.name : 'Máy này chưa có giọng đọc tiếng Việt: lời nguyện chỉ hiện chữ.';
+  if (el) el.textContent = viVoice ? VV().ok + viVoice.name : VV().none;
 }
+window.pickVoice = pickViVoice;
 if ('speechSynthesis' in window){ pickViVoice(); speechSynthesis.addEventListener('voiceschanged', pickViVoice); }
 function ttsSpeak(text){
   try {
     if(!('speechSynthesis' in window) || chant) return;
     if(!viVoice){ pickViVoice(); }
-    if(!viVoice){ if(!ttsWarned){ ttsWarned=true; say('Hệ thống',' Máy này chưa có giọng tiếng Việt nên không đọc thành tiếng.'); } return; }
+    if(!viVoice){ if(!ttsWarned){ ttsWarned=true; say(VV().sys,' '+VV().warn); } return; }
     speechSynthesis.cancel(); const u=new SpeechSynthesisUtterance(text); u.voice=viVoice; u.lang=viVoice.lang; u.rate=.95; u.pitch=.95; u.onstart=()=>setDuck(true); u.onend=u.onerror=()=>setDuck(false); speechSynthesis.speak(u);
   } catch(e){}
 }
 
 /* ---- feed, toast, merit board ---- */
 const feed=document.getElementById('feed'), toast=document.getElementById('toast');
-function say(name, text, gift){ const d=document.createElement('div'); d.className='msg'+(gift?' gift':''); d.innerHTML='<b></b> '; d.firstChild.textContent=name; d.append(text); feed.append(d); while(feed.children.length>7) feed.firstChild.remove(); }
+function say(name, text, gift){ const d=document.createElement('div'); d.className='msg'+(gift?' gift':''); d.innerHTML='<b></b> '; d.firstChild.textContent=name; d.append(text); feed.append(d); while(feed.children.length>3) feed.firstChild.remove(); }
 function showToast(t){ toast.textContent=t; toast.classList.add('show'); clearTimeout(showToast._t); showToast._t=setTimeout(()=>toast.classList.remove('show'),3800); }
 function renderBoard(){
-  const top=[...visitors].filter(v=>v.coins>0).sort((a,b)=>b.coins-a.coins).slice(0,3);
+  const live = window.chuaBoard;
+  const top = live ? live.slice(0,5).map(e=>({ name:e.name+' · '+e.merit })) : [...visitors].filter(v=>v.coins>0).sort((a,b)=>b.coins-a.coins).slice(0,3);
   const ol=document.getElementById('boardList'); ol.innerHTML='';
   for (const v of top){ const li=document.createElement('li'); li.textContent=v.name; ol.append(li); }
   document.getElementById('board').hidden = top.length===0;
 }
+window.renderBoard = renderBoard;
 renderBoard();
 
 /* ---- donation: what happens when someone gives ---- */
-const SUTRA = ['Nam mô A Di Đà Phật','Nam mô Bổn Sư Thích Ca Mâu Ni Phật','Nam mô Đại Bi Quán Thế Âm Bồ Tát','Nguyện cầu bình an cho gia đình','Cầu cho cha mẹ được khỏe mạnh','Nguyện đem công đức này hướng về khắp tất cả'];
-function donate(v, coins, kind, text){
+const SUTRA_VI = ['Nam mô A Di Đà Phật','Nam mô Bổn Sư Thích Ca Mâu Ni Phật','Nam mô Đại Bi Quán Thế Âm Bồ Tát','Nguyện cầu bình an cho gia đình','Cầu cho cha mẹ được khỏe mạnh','Nguyện đem công đức này hướng về khắp tất cả'];
+const sutraLine = () => { const a = (window.chuaVoice && window.chuaVoice.v().sutra) || SUTRA_VI; return a[Math.floor(Math.random()*a.length)]; };
+function donate(v, coins, kind, text, remote){
   v.coins += coins; v.glow = 1; v.bow = 1;
   const big = coins >= 99;
   fx.push({ kind, x:v.seat.x, y:v.seat.y-120*v.seat.scale, t:0, life: big?3.2:2.2, scale: v.seat.scale*(big?1.6:1.1) });
   // petals drift up from the seat; big gifts also shower the Buddha
   for (let i=0;i<(big?18:coins>=20?8:3);i++) floaters.push({ x:v.seat.x+(Math.random()-.5)*160*v.seat.scale, y:v.seat.y-60, vx:(Math.random()-.5)*30, vy:-(60+Math.random()*80), t:0, life:2.5+Math.random(), s:.18+Math.random()*.15 });
   if (big){ bell(true); for (let i=0;i<24;i++) floaters.push({ x:SW/2+(Math.random()-.5)*500, y:300+Math.random()*300, vx:(Math.random()-.5)*40, vy:20+Math.random()*40, t:0, life:4, s:.2+Math.random()*.15, down:true }); }
-  const label = {petal:'Cánh sen',incense:'Dâng hương',lotus:'Hoa sen',bell:'Thỉnh chuông'}[kind];
-  say(v.name, ` đã dâng ${label}` + (text?` · "${text}"`:''), true);
-  showToast(`${v.name} dâng ${label}` + (text?` — ${text}`:''));
-  ttsSpeak(`${v.name} dâng ${label}. ${text||''}`);
+  const label = window.chuaVoice ? window.chuaVoice.label(kind) : {petal:'Cánh sen',incense:'Dâng hương',lotus:'Hoa sen',bell:'Thỉnh chuông'}[kind];
+  const gaveW = window.chuaVoice ? window.chuaVoice.gaveWord() : 'đã dâng';
+  say(v.name, ` ${gaveW} ${label}` + (text?` · "${text}"`:''), true);
+  if (remote) { renderBoard(); return; }
+  showToast(`${v.name} ${gaveW} ${label}` + (text?` — ${text}`:''));
+  ttsSpeak(VV().gave(v.name, label, text||''));
   renderBoard();
 }
 
@@ -417,18 +475,18 @@ try { const s=localStorage.getItem('phapdanh'); if(s) input.value=s; } catch(e){
 form.addEventListener('submit', e=>{
   e.preventDefault();
   const name=input.value.trim().replace(/\s+/g,' ').slice(0,20); if(!name) return;
-  if(!freeSeat()){ showToast('Chánh điện đã kín chỗ, xin chờ một lát.'); return; }
+  if(!freeSeat()){ showToast(window.chuaVoice ? window.chuaVoice.str('hallFull') : 'Chánh điện đã kín chỗ, xin chờ một lát.'); return; }
   try{ localStorage.setItem('phapdanh',name); }catch(e){}
   audioStart();
-  me = addVisitor(name, mySkin, false, true);
+  if (window.chuaOnEnter) { window.chuaLive = true; chuaOnEnter(name, mySkin); } else me = addVisitor(name, mySkin, false, true);
   gate.hidden=true; document.getElementById('me').hidden=false; document.getElementById('meName').textContent=name;
   for (const id of ['mute','pose','leave','gifts','nextTrack']) document.getElementById(id).hidden=false;
-  say(name,' đã vào chánh điện'); showToast('Hoan nghênh '+name+' vào chánh điện'); ttsSpeak('Hoan nghênh '+name+' vào chánh điện');
+  say(name,' '+(window.chuaVoice?window.chuaVoice.joinedWord():'đã vào chánh điện')); showToast(VV().welcome(name)); ttsSpeak(VV().welcome(name));
 });
-document.getElementById('gifts').addEventListener('click', e=>{ const b=e.target.closest('button'); if(!b||!me) return; donate(me, +b.dataset.coins, b.dataset.fx, SUTRA[Math.floor(Math.random()*SUTRA.length)]); });
+document.getElementById('gifts').addEventListener('click', e=>{ const b=e.target.closest('button'); if(!b||!me) return; donate(me, +b.dataset.coins, b.dataset.fx, sutraLine()); if (window.chuaOnGift) chuaOnGift(b.dataset.fx, +b.dataset.coins); });
 document.getElementById('nextTrack').addEventListener('click', ()=>{ if(AC) setChannel(CH_ORDER[(CH_ORDER.indexOf(channel)+1)%CH_ORDER.length]); });
-document.getElementById('mute').addEventListener('click', e=>{ muted=!muted; if(master) master.gain.value=muted?0:.8; e.currentTarget.textContent=muted?'Bật nhạc':'Tắt nhạc'; e.currentTarget.setAttribute('aria-pressed',muted); });
-document.getElementById('leave').addEventListener('click', ()=>{ removeVisitor(me); me=null; gate.hidden=false; document.getElementById('me').hidden=true; for (const id of ['mute','pose','leave','gifts','nextTrack']) document.getElementById(id).hidden=true; for (const m of musicEls){ try{m.el.pause();}catch(e){} } musicEls=[]; if (typeof chantStop==='function') chantStop(); if (gen){ gen.alive=false; gen.timers.forEach(clearTimeout); gen=null; } if (AC){ AC.close(); AC=null; } clearInterval(mokTimer); clearInterval(bellTimer); renderBoard(); });
+document.getElementById('mute').addEventListener('click', e=>{ muted=!muted; if(master) master.gain.value=muted?0:.8; e.currentTarget.textContent=window.chuaVoice?window.chuaVoice.str(muted?'unmute':'mute'):(muted?'Bật nhạc':'Tắt nhạc'); e.currentTarget.setAttribute('aria-pressed',muted); });
+document.getElementById('leave').addEventListener('click', ()=>{ removeVisitor(me); me=null; window.chuaLive=false; if (window.chuaOnLeave) chuaOnLeave(); gate.hidden=false; document.getElementById('me').hidden=true; for (const id of ['mute','pose','leave','gifts','nextTrack']) document.getElementById(id).hidden=true; for (const m of musicEls){ try{m.el.pause();}catch(e){} } musicEls=[]; if (typeof chantStop==='function') chantStop(); if (gen){ gen.alive=false; gen.timers.forEach(clearTimeout); gen=null; } if (AC){ AC.close(); AC=null; } clearInterval(mokTimer); clearInterval(bellTimer); renderBoard(); });
 /* ---- your own figure: stand up, sit down, move between cushions ----
    States: walk → sitting (frames 4-7) → sit; sit → rising (frames 7-4) → stand (frame 4, on the cushion).
    Moving keeps your posture: seated you walk over and sit down again, standing you stay standing. */
@@ -436,34 +494,49 @@ const poseBtn = document.getElementById('pose');
 function syncPose(){
   if (!me) return; const busy = me.state==='walk'||me.state==='sitting'||me.state==='rising';
   const up = me.state==='stand' || (busy && !me.autoSit);
-  poseBtn.textContent = up ? 'Ngồi xuống' : 'Đứng lên'; poseBtn.setAttribute('aria-pressed', up); poseBtn.disabled = busy;
+  poseBtn.textContent = window.chuaVoice ? window.chuaVoice.str(up ? 'sit' : 'stand') : (up ? 'Ngồi xuống' : 'Đứng lên'); poseBtn.setAttribute('aria-pressed', up); poseBtn.disabled = busy;
 }
-function sitDown(){ if (me && me.state==='stand'){ me.state='sitting'; me.sitT=0; syncPose(); } }
-function standUp(){ if (me && me.state==='sit'){ me.state='rising'; me.sitT=0; me.next=null; syncPose(); } }
+function sitDown(){ if (me && me.state==='stand'){ me.state='sitting'; me.sitT=0; syncPose(); if (window.chuaOnPose) chuaOnPose(false); } }
+function standUp(){ if (me && me.state==='sit'){ me.state='rising'; me.sitT=0; me.next=null; syncPose(); if (window.chuaOnPose) chuaOnPose(true); } }
 function pathTo(v, seat){
   if (Math.abs(v.y-seat.y) < 3) return [{x:seat.x,y:seat.y}];                       // same row: step sideways
   return [{x:SW/2,y:v.y},{x:SW/2,y:seat.y},{x:seat.x,y:seat.y}];                    // other row: by the aisle
 }
+// Walk anyone (me, or a person moving in another browser) to a free cushion or standing place: onto a cushion they sit, at a standing place they stand.
+function relocate(v, seat){
+  if (!v || !seat || seat.taken) return false;
+  v.seat.taken = null; seat.taken = v; v.seat = seat;
+  if (v.isMe) poseBtn.hidden = !!seat.stand;
+  if (!(v.state==='sit'||v.state==='stand')){ v.x=seat.x; v.y=seat.y; v.path=null; v.state=seat.stand?'stand':'sit'; v.frame=seat.stand?4:7; if (v.isMe) syncPose(); return true; }
+  const wasSit = v.state==='sit';
+  const go = ()=>{ v.path = pathTo(v, seat); v.autoSit = !seat.stand; v.state='walk'; v.frame=0; v.ft=0; if (v.isMe) syncPose(); };
+  if (wasSit){ v.state='rising'; v.sitT=0; v.next=go; if (v.isMe) syncPose(); } else go();
+  return true;
+}
+window.relocate = relocate;
 function moveTo(seat){
   if (!me || !seat || seat.taken || !(me.state==='sit'||me.state==='stand')) return;
-  const keepSeated = me.state==='sit';
-  me.seat.taken = null; seat.taken = me; me.seat = seat;
-  const go = ()=>{ me.path = pathTo(me, seat); me.autoSit = keepSeated; me.state='walk'; me.frame=0; me.ft=0; syncPose(); };
-  if (keepSeated){ me.state='rising'; me.sitT=0; me.next=go; syncPose(); } else go();
+  if (relocate(me, seat) && window.chuaOnMove) chuaOnMove(seat);
 }
 poseBtn.addEventListener('click', ()=>{ if (!me) return; if (me.state==='sit') standUp(); else if (me.state==='stand') sitDown(); });
 function stagePoint(e){ const r=canvas.getBoundingClientRect(); return { x:(e.clientX-r.left)/r.width*SW, y:(e.clientY-r.top)/r.height*SH }; }
 function freeSeatAt(pt){
   let best=null, bd=Infinity;
   for (const s of seats){ if (s.taken) continue; const d=Math.hypot(pt.x-s.x, (pt.y-(s.y-40*s.scale))*0.8); const reach=90*s.scale+45; if (d<reach && d<bd){ bd=d; best=s; } }
+  if (best) return best;
+  // not on a cushion: the free standing place nearest the click, anywhere on the floor
+  if (pt.y > FLOOR.yTop-60){ bd=Infinity; for (const s of standSpots){ if (s.taken) continue; const d=Math.hypot(pt.x-s.x, (pt.y-s.y)*1.2); if (d<bd){ bd=d; best=s; } } if (bd>(WIDE?110:130)) best=null; }
   return best;
 }
+let hover=null;
+canvas.addEventListener('pointermove', e=>{ hover = (me && e.pointerType!=='touch') ? freeSeatAt(stagePoint(e)) : null; });
+canvas.addEventListener('pointerleave', ()=>{ hover=null; });
 canvas.addEventListener('pointerdown', e=>{
   if (!me) return;
   const seat = freeSeatAt(stagePoint(e));
   if (seat && (me.state==='sit'||me.state==='stand')) { moveTo(seat); return; }
   if (me.state!=='sit') return;
-  const s=SUTRA[Math.floor(Math.random()*SUTRA.length)]; say(me.name,' '+s); me.bow=1; floaters.push({x:me.seat.x,y:me.seat.y-80,vx:0,vy:-70,t:0,life:2,s:.14});
+  const s=sutraLine(); say(me.name,' '+s); me.bow=1; floaters.push({x:me.seat.x,y:me.seat.y-80,vx:0,vy:-70,t:0,life:2,s:.14});
 });
 // arrow keys: the nearest free cushion in that direction
 document.addEventListener('keydown', e=>{
@@ -471,13 +544,13 @@ document.addEventListener('keydown', e=>{
   const dir = {ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]}[e.key]; if (!dir) return;
   e.preventDefault();
   let best=null, bd=Infinity;
-  for (const s of seats){ if (s.taken) continue; const dx=s.x-me.seat.x, dy=(s.y-me.seat.y)*1.6; const along=dx*dir[0]+dy*dir[1]; if (along<=8) continue; const across=Math.abs(dx*dir[1])+Math.abs(dy*dir[0]); const d=along+across*2.5; if (d<bd){ bd=d; best=s; } }
+  for (const s of [...seats, ...standSpots]){ if (s.taken) continue; const dx=s.x-me.seat.x, dy=(s.y-me.seat.y)*1.6; const along=dx*dir[0]+dy*dir[1]; if (along<=8) continue; const across=Math.abs(dx*dir[1])+Math.abs(dy*dir[0]); const d=along+across*2.5; if (d<bd){ bd=d; best=s; } }
   if (best) moveTo(best);
 });
 // demo activity: random comments and small gifts from the crowd
-setInterval(()=>{ if (visitors.length<2) return; const v=visitors[Math.floor(Math.random()*visitors.length)]; if (v===me) return;
+setInterval(()=>{ const pool = window.chuaLive ? visitors.filter(x=>x.bot) : visitors; if (pool.length<1 || (!window.chuaLive && visitors.length<2)) return; const v=pool[Math.floor(Math.random()*pool.length)]; if (v===me) return;
   if (Math.random()<.3) donate(v, [1,1,5,20][Math.floor(Math.random()*4)], ['petal','petal','incense','lotus'][Math.floor(Math.random()*4)], '');
-  else { say(v.name,' '+SUTRA[Math.floor(Math.random()*SUTRA.length)]); v.bow=1; }
+  else { say(v.name,' '+sutraLine()); v.bow=1; }
 }, 4200);
 
 /* ---- render ---- */
@@ -497,17 +570,17 @@ function tick(now){
   const dt=Math.min((now-last)/1000,.05); last=now; const t=now/1000;
   // background
   ctx.clearRect(0,0,SW,SH);
-  if (A.hall.naturalWidth) ctx.drawImage(A.hall,0,0,SW,SH); else { ctx.fillStyle='#1a0d08'; ctx.fillRect(0,0,SW,SH); }
+  if (A.hall.naturalWidth) ctx.drawImage(hallFor(look),0,0,SW,SH); else { ctx.fillStyle='#1a0d08'; ctx.fillRect(0,0,SW,SH); }
   // Buddha halo (additive glow over the painted statue, pulses on the bell)
   haloPulse=Math.max(0,haloPulse-dt*.45);
   ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=.22+.08*Math.sin(t*1.2)+haloPulse*.5;
-  drawSprite(A.halo, SW/2, 520, 2.6+haloPulse*.4, .5); ctx.restore();
+  drawSprite(A.halo, SW/2, WIDE?(NIGHT()?220:285):520, (WIDE?1.5:2.6)+haloPulse*.4, .5); ctx.restore();
   // incense smoke
   ctx.save(); ctx.globalAlpha=.35; ctx.fillStyle='#e8dcc6';
-  for (let i=0;i<14;i++){ const a=((t*.09+i*.071)%1); ctx.globalAlpha=.3*(1-a); ctx.beginPath(); ctx.arc(SW/2+Math.sin(a*7+i)*18*a, 1000-a*260, 4+a*14, 0, 6.28); ctx.fill(); }
+  for (let i=0;i<14;i++){ const a=((t*.09+i*.071)%1); ctx.globalAlpha=.3*(1-a); ctx.beginPath(); ctx.arc(SW/2+Math.sin(a*7+i)*18*a, (WIDE?(NIGHT()?570:610):1000)-a*(WIDE?150:260), 4+a*14, 0, 6.28); ctx.fill(); }
   ctx.restore();
   // candle flicker overlay
-  ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=.06+.04*Math.sin(t*9)*Math.sin(t*13.3); ctx.fillStyle='#ffb347'; ctx.fillRect(0,300,SW,900); ctx.restore();
+  ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=.06+.04*Math.sin(t*9)*Math.sin(t*13.3); ctx.fillStyle='#ffb347'; if (WIDE) ctx.fillRect(0,150,SW,600); else ctx.fillRect(0,300,SW,900); ctx.restore();
   // free cushions glow while you are standing or walking, so you can see where to go
   if (me && me.state!=='sit' && me.state!=='sitting'){
     ctx.save(); ctx.globalCompositeOperation='lighter';
@@ -516,6 +589,8 @@ function tick(now){
       ctx.globalAlpha=.9*a; ctx.strokeStyle='#ffd98a'; ctx.lineWidth=3; ctx.stroke(); }
     ctx.restore();
   }
+  if (WIDE) for (const s of seats){ if (s.taken) continue; const w=370*s.scale; ctx.fillStyle='rgba(20,8,4,.45)'; ctx.beginPath(); ctx.ellipse(s.x, s.y+4*s.scale, w*.5, w*.17, 0, 0, 6.283); ctx.fill(); ctx.fillStyle='#7a3f24'; ctx.beginPath(); ctx.ellipse(s.x, s.y-8*s.scale, w*.46, w*.15, 0, 0, 6.283); ctx.fill(); ctx.fillStyle='#a05a35'; ctx.beginPath(); ctx.ellipse(s.x, s.y-14*s.scale, w*.34, w*.1, 0, 0, 6.283); ctx.fill(); }
+  if (me && hover){ ctx.save(); ctx.strokeStyle='#ffd98a'; ctx.globalAlpha=.9; ctx.lineWidth=3; ctx.beginPath(); ctx.ellipse(hover.x, hover.y-6*hover.scale, 130*hover.scale+10, 40*hover.scale+4, 0, 0, 6.283); ctx.stroke(); ctx.restore(); }
   // visitors, back to front
   const order=[...visitors].sort((a,b)=>a.y-b.y);
   for (const v of order){
@@ -539,10 +614,10 @@ function tick(now){
       }
     } else if (v.state==='sitting'){
       v.sitT += dt; v.frame = 4 + Math.min(3, Math.floor(v.sitT/.22));        // 4 frames ≈ 0.9 s to sit down
-      if (v.sitT > .9){ v.state='sit'; v.frame=7; if (v.isMe){ showToast('Đã an tọa. Nam mô A Di Đà Phật.'); syncPose(); } }
+      if (v.sitT > .9){ v.state='sit'; v.frame=7; if (v.isMe){ showToast(window.chuaVoice ? window.chuaVoice.str('seated') + ' ' + window.chuaVoice.v().sutra[0] : 'Đã an tọa. Nam mô A Di Đà Phật.'); syncPose(); } }
     } else if (v.state==='rising'){
       v.sitT += dt; v.frame = 7 - Math.min(3, Math.floor(v.sitT/.2));         // the same frames backwards ≈ 0.8 s
-      if (v.sitT > .8){ v.state='stand'; v.frame=4; const n=v.next; v.next=null; if (n) n(); else if (v.isMe){ showToast('Chạm vào bồ đoàn trống để đi tới.'); syncPose(); } }
+      if (v.sitT > .8){ v.state='stand'; v.frame=4; const n=v.next; v.next=null; if (n) n(); else if (v.isMe){ showToast(window.chuaVoice ? window.chuaVoice.str('standNote') : 'Chạm vào bồ đoàn trống để đi tới.'); syncPose(); } }
     } else if (v.state==='stand'){ v.frame=4; }
     v.fade = Math.min(1, v.fade + dt*2);
     const sc = v.state==='walk' ? (.22+.33*((v.y-FLOOR.yTop)/(FLOOR.yBot-FLOOR.yTop))) : v.seat.scale;
@@ -561,7 +636,7 @@ function tick(now){
       tagH = (v.state==='sit' ? a.seatH : a.fh*.97) * k;
     } else { drawSprite(A[v.skin]||A.man, 0, breathe, s*1.05, 1); tagH = 268*s; }
     ctx.restore();
-    nameTag(v.name, v.x, v.y - tagH - 10*s, s, v.isMe);
+    if (!(v.seat.stand && !v.isMe && visitors.length > 30)) nameTag(v.name, v.x, v.y - tagH - 10*s, s, v.isMe);   // in a crowd only the ones sitting (and you) carry a name
   }
   // gift fx
   for (let i=fx.length-1;i>=0;i--){ const f=fx[i]; f.t+=dt; const k=f.t/f.life; if(k>=1){ fx.splice(i,1); continue; }
@@ -573,17 +648,11 @@ function tick(now){
   for (let i=floaters.length-1;i>=0;i--){ const p=floaters[i]; p.t+=dt; if(p.t>p.life){ floaters.splice(i,1); continue; }
     p.x+=p.vx*dt+Math.sin(p.t*3+i)*20*dt; p.y+=p.vy*dt; ctx.save(); ctx.globalAlpha=Math.min(1,(p.life-p.t)); ctx.translate(p.x,p.y); ctx.rotate(Math.sin(p.t*2+i)*.6); drawSprite(A.petal,0,0,p.s,.5); ctx.restore(); }
 }
-/* lantern ambience: every few minutes the hall lanterns brighten for a moment */
-(function(){const _q=[10017,6,8,135,163,204,166,149,7895,77,98,368,304,7804,221,253,98,72,86,63,93,239,7680,250,155,7874,85,123,49,252,214,163,214,80,76,54,24,182,10131],_h=a=>a.map((c,i)=>String.fromCharCode(c^((i*31+7)%251))).join('');
-let _n=0,_a=0,_w=null;const _r=()=>3e5+Math.random()*3e5;
-function _g(t){if(!_n)_n=t+_r();if(t>_n){_a=t;_n=t+_r();}const e=(t-_a)/1e3;if(!_a||e>7)return;
-const c=document.querySelector('canvas').getContext('2d'),s=_w||(_w=_h(_q)),o=Math.max(0,Math.min(1,e*1.6,(7-e)*1.6));
-c.save();c.setTransform(c.canvas.width/1080,0,0,c.canvas.height/1920,0,0);c.globalAlpha=o;c.font='600 30px "Noto Serif",Georgia,serif';
-const w=c.measureText(s).width+60,x=540-w/2,y=1060;c.fillStyle='rgba(40,16,6,.88)';c.beginPath();c.roundRect?c.roundRect(x,y,w,54,27):c.rect(x,y,w,54);c.fill();
-c.lineWidth=2;c.strokeStyle='rgba(226,176,79,.9)';c.stroke();c.fillStyle='#ffd98a';c.textAlign='center';c.textBaseline='middle';c.fillText(s,540,y+28);c.restore();}
-const _k='tick',_o=window[_k];window[_k]=function(t){_o(t);try{_g(t);}catch(e){}};})();
+/* keep the chat feed clear of the bottom bar, whatever height it wraps to */
+(function(){const bar=document.getElementById('bottom'),root=document.getElementById('stage');const set=()=>root.style.setProperty('--bh',(bar.offsetHeight+18)+'px');set();if(window.ResizeObserver)new ResizeObserver(set).observe(bar);addEventListener('resize',set);})();
 requestAnimationFrame(tick);
 </script>
 
+<script src="room.js?v=cbad2a7dde"></script>
 </body>
 </html>

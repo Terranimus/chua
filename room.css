@@ -1,0 +1,28 @@
+/* styles of room.js (a script cannot add inline styles under the page's CSP, so they live here) */
+#homeLink{text-decoration:none;color:var(--fg)}
+#homeLink:visited{color:var(--fg)}
+#top{flex-wrap:nowrap;gap:6px}
+#top .chip{white-space:nowrap;padding:5px 9px}
+@media (max-width:520px){#me .hint{display:none}
+#langSel{padding:5px 4px}
+}
+#chat{position:absolute;left:10px;top:52px;z-index:4;width:calc(100% - 190px);max-width:260px;display:flex;flex-direction:column;gap:4px;pointer-events:none}
+#chat #feed{position:static;width:100%;max-width:none}
+#chatForm{display:flex;gap:4px;pointer-events:auto}
+#chatForm input{padding:6px 10px;font-size:14px;border-radius:999px;min-width:0}
+#roomPanel{position:absolute;z-index:7;left:50%;top:48px;transform:translateX(-50%);background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:8px;backdrop-filter:blur(8px);min-width:220px}
+.rp-row{display:flex;gap:6px;align-items:center}
+#roomNo{width:90px;padding:6px 10px;font-size:14px}
+#langSel{padding:5px 6px;appearance:none;-webkit-appearance:none;text-align:center}
+#acct a{color:var(--gold)}
+@media (max-width:520px){#acct{display:none!important}
+}
+
+#langSel{margin:0}.rp-row select{flex:1}
+#gateForm .lang{align-self:flex-start}
+
+#countChip{display:flex;align-items:center;gap:6px}
+#roomChip{font-weight:600}
+#countChip .rc{font:inherit;color:var(--gold);background:transparent;border:1px solid var(--line);border-radius:999px;padding:2px 9px;cursor:pointer;white-space:nowrap}
+#countChip .rc:hover{background:rgba(255,255,255,.08)}
+@media (max-width:520px){#countChip .rcl{display:none}#countChip .rc{padding:2px 8px}}
