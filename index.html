@@ -68,6 +68,11 @@ input::placeholder{color:#7d6a52}
 .seg{display:flex;gap:6px;flex-wrap:wrap}
 .seg button{background:rgba(0,0,0,.3);border:1px solid var(--line);color:var(--fg);border-radius:999px;padding:5px 10px;font-size:12px}
 .seg button[aria-pressed="true"]{background:var(--red);border-color:#b8452f;color:#fff3dc}
+#chant{position:absolute;left:50%;top:45%;transform:translateX(-50%);z-index:4;width:min(90%,440px);background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:9px 14px;text-align:center;pointer-events:none;backdrop-filter:blur(6px)}
+#chant .h{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+#chant .p,#chant .n{font-size:12px;color:var(--muted);min-height:1.35em;opacity:.7;overflow-wrap:anywhere}
+#chant .c{font-family:var(--display);font-size:19px;line-height:1.35;margin:3px 0;color:var(--fg);overflow-wrap:anywhere}
+#chant .c span.on{color:var(--gold)}
 #toast{position:absolute;left:50%;top:14%;transform:translateX(-50%);z-index:6;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:9px 15px;font-family:var(--display);color:var(--gold);font-size:14px;opacity:0;transition:opacity .4s;pointer-events:none;max-width:88%;text-align:center}
 #toast.show{opacity:1}
 @media (prefers-reduced-motion:reduce){#toast,.msg{transition:none;animation:none}}
@@ -92,12 +97,13 @@ input::placeholder{color:#7d6a52}
       <button class="btn gift" data-coins="99" data-fx="bell"><b>Thỉnh chuông</b></button>
     </span>
     <span class="row">
-      <button class="btn" id="nextTrack" hidden title="Bài kế tiếp"><span id="nowPlaying">♪</span> ›</button>
+      <button class="btn" id="nextTrack" hidden title="Đổi kênh nhạc"><span id="nowPlaying">♪</span> ›</button>
       <button class="btn" id="mute" hidden aria-pressed="false">Tắt nhạc</button>
       <button class="btn" id="pose" hidden aria-pressed="false">Đứng lên</button>
       <button class="btn" id="leave" hidden>Rời</button>
     </span>
   </div>
+  <div id="chant" hidden><div class="h"></div><div class="p"></div><div class="c"></div><div class="n"></div></div>
   <div id="toast" role="status"></div>
   <div id="gate">
     <form id="gateForm">
@@ -113,7 +119,7 @@ input::placeholder{color:#7d6a52}
       </div>
       <div class="row">
         <button type="submit" class="btn primary">Vào chánh điện</button>
-        <span class="hint">Khi đã vào: chạm chánh điện để tụng một câu, chạm bồ đoàn trống (hoặc phím mũi tên) để đổi chỗ, nút Đứng lên / Ngồi xuống ở dưới.</span>
+        <span class="hint">Khi đã vào: chạm chánh điện để tụng một câu, chạm bồ đoàn trống (hoặc phím mũi tên) để đổi chỗ, nút Đứng lên / Ngồi xuống ở dưới. Nút ♪ đổi nhạc: Nhạc thiền, Đàn tranh, Chú Đại Bi.</span>
       </div>
       <div class="row">
         <span class="hint">Thực hiện bởi Kent Juno · <a href="https://github.com/kentjuno/chanh-dien-online" rel="noopener">mã nguồn mở (MIT)</a>. Trang cộng đồng, không đại diện cho chùa hay tổ chức tôn giáo nào.</span>
@@ -197,7 +203,7 @@ function audioStart(){
   if (AC) return;
   AC = new (window.AudioContext||window.webkitAudioContext)(); master = AC.createGain(); master.gain.value=.8; master.connect(AC.destination);
   musicGain = AC.createGain(); musicGain.gain.value=.55; musicGain.connect(master);
-  playTrack(Math.floor(Math.random()*TRACKS.length));
+  channel='thien'; playTrack(Math.floor(Math.random()*TRACKS.length));
   bell(); bellTimer=setInterval(bell, 45000); mokTimer=setInterval(mok, 1150);
 }
 function playTrack(i){
@@ -207,12 +213,141 @@ function playTrack(i){
   const now = AC.currentTime; g.gain.linearRampToValueAtTime(1, now+4);
   for (const old of musicEls){ old.g.gain.cancelScheduledValues(now); old.g.gain.setValueAtTime(old.g.gain.value, now); old.g.gain.linearRampToValueAtTime(0, now+4); setTimeout(()=>{ try{old.el.pause();}catch(e){} }, 4200); }
   musicEls = [{el,g}];
-  el.addEventListener('timeupdate', ()=>{ if (el.duration && el.duration-el.currentTime < 4 && !el._next){ el._next=true; playTrack(trackIdx+1); } });
-  el.addEventListener('error', ()=>{ if (TRACKS.length>1 && !el._next){ el._next=true; playTrack(trackIdx+1); } });
+  el.addEventListener('timeupdate', ()=>{ if (channel!=='thien') return; if (el.duration && el.duration-el.currentTime < 4 && !el._next){ el._next=true; playTrack(trackIdx+1); } });
+  el.addEventListener('error', ()=>{ if (channel!=='thien') return; if (TRACKS.length>1 && !el._next){ el._next=true; playTrack(trackIdx+1); } });
   el.play().catch(()=>{});
-  const nt=document.getElementById('nowPlaying'); if (nt) nt.textContent = '♪ ' + tr.name;
+  updateNowPlaying();
 }
 function setDuck(on){ if(!musicGain) return; const t=AC.currentTime; musicGain.gain.cancelScheduledValues(t); musicGain.gain.setValueAtTime(musicGain.gain.value,t); musicGain.gain.linearRampToValueAtTime(on?.18:.55, t+.4); }
+/* ---- music channels: "Nhạc thiền" (the two Gemini tracks), "Đàn tranh" (made here by code, endless) ---- */
+const CH_LABEL = { thien:'Nhạc thiền', tranh:'Đàn tranh', daibi:'Chú Đại Bi' };
+const CH_ORDER = ['thien','tranh','daibi'];
+let channel = 'thien', gen = null;
+const PLUCKS = {};
+function pluckBuffer(f){
+  const key = Math.round(f*10); if (PLUCKS[key]) return PLUCKS[key];
+  const sr = AC.sampleRate, len = Math.floor(sr*3.5), b = AC.createBuffer(1, len, sr), d = b.getChannelData(0);
+  const N = Math.max(2, Math.round(sr/f)), ring = new Float32Array(N);
+  let prev = 0; for (let i=0;i<N;i++){ const r = Math.random()*2-1; ring[i] = (r+prev)/2; prev = r; }
+  let p = 0, peak = 0;
+  for (let i=0;i<len;i++){ const q=(p+1)%N; const y=.4985*(ring[p]+ring[q]); ring[p]=y; d[i]=y; peak=Math.max(peak,Math.abs(y)); p=q; }
+  for (let i=0;i<len;i++) d[i] /= (peak||1);
+  return (PLUCKS[key] = b);
+}
+function makeReverb(){
+  const len = AC.sampleRate*4, b = AC.createBuffer(2, len, AC.sampleRate);
+  for (let c=0;c<2;c++){ const d=b.getChannelData(c); for (let i=0;i<len;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/len, 3); }
+  const cv = AC.createConvolver(); cv.buffer = b; return cv;
+}
+// D pentatonic (ngũ cung): D E G A B over two octaves
+const SCALE = [293.66,329.63,392.00,440.00,493.88,587.33,659.25,783.99,880.00];
+function genStart(withPlucks){
+  genStop();
+  const g = { alive:true, timers:[], nodes:[] }; gen = g;
+  const now = AC.currentTime;
+  g.out = AC.createGain(); g.out.gain.setValueAtTime(0, now); g.out.gain.linearRampToValueAtTime(2.4, now+3); g.out.connect(musicGain);
+  g.dry = AC.createGain(); g.dry.gain.value = .8; g.dry.connect(g.out);
+  const rev = makeReverb(), wet = AC.createGain(); wet.gain.value = .4; rev.connect(wet); wet.connect(g.out); g.rev = rev;
+  // a soft drone on D and A, breathing slowly
+  const drone = AC.createGain(); drone.gain.value = withPlucks ? .05 : .09; drone.connect(g.dry); drone.connect(rev);
+  [[73.42,.6],[110.0,.35],[146.83,.18]].forEach(([f,a],i)=>{ const o=AC.createOscillator(); o.type='sine'; o.frequency.value=f; o.detune.value=(i-1)*4; const og=AC.createGain(); og.gain.value=a; o.connect(og); og.connect(drone); o.start(); g.nodes.push(o); });
+  const lfo = AC.createOscillator(), lg = AC.createGain(); lfo.frequency.value = .06; lg.gain.value = withPlucks ? .02 : .04; lfo.connect(lg); lg.connect(drone.gain); lfo.start(); g.nodes.push(lfo);
+  const later = (fn, ms) => { const id = setTimeout(()=>{ if (g.alive) fn(); }, ms); g.timers.push(id); };
+  function bowl(){
+    const t = AC.currentTime+.05, f = [146.83,196.0,220.0][Math.floor(Math.random()*3)];
+    for (const [k,a] of [[1,.22],[2.76,.08],[5.4,.03]]) for (const det of [-.6,.6]){
+      const o=AC.createOscillator(); o.type='sine'; o.frequency.value=f*k+det; const og=AC.createGain();
+      og.gain.setValueAtTime(0,t); og.gain.linearRampToValueAtTime(a/2,t+.03); og.gain.exponentialRampToValueAtTime(.0001,t+10/k);
+      o.connect(og); og.connect(g.dry); og.connect(rev); o.start(t); o.stop(t+10/k+.1);
+    }
+    later(bowl, 18000+Math.random()*20000);
+  }
+  function note(f, t, bend, vel){
+    const s = AC.createBufferSource(); s.buffer = pluckBuffer(f);
+    if (bend){ s.playbackRate.setValueAtTime(1, t+.12); s.playbackRate.linearRampToValueAtTime(1.06, t+.32); s.playbackRate.linearRampToValueAtTime(1, t+.7); }
+    const ng = AC.createGain(); ng.gain.value = .32*vel; s.connect(ng); ng.connect(g.dry); ng.connect(rev); s.start(t); s.stop(t+3.5);
+  }
+  let idx = 4;
+  function phrase(){
+    let t = AC.currentTime+.1; const n = 4+Math.floor(Math.random()*5);
+    for (let i=0;i<n;i++){
+      idx = Math.max(0, Math.min(SCALE.length-1, idx + [-2,-1,-1,1,1,2][Math.floor(Math.random()*6)]));
+      note(SCALE[idx], t, Math.random()<.25, .7+Math.random()*.3);
+      if (Math.random()<.18){ note(SCALE[idx], t+.22, false, .45); t += .22; }
+      t += [.45,.6,.6,.9,1.2][Math.floor(Math.random()*5)];
+    }
+    if (Math.random()<.5) note(SCALE[Math.max(0,idx-2)]/2, t, false, .5);   // a low answering note
+    later(phrase, (t-AC.currentTime)*1000 + 2500 + Math.random()*3500);
+  }
+  bowl(); if (withPlucks) later(phrase, 1500);
+}
+function genStop(){
+  const g = gen; if (!g) return; gen = null; g.alive = false; g.timers.forEach(clearTimeout);
+  const now = AC.currentTime; g.out.gain.cancelScheduledValues(now); g.out.gain.setValueAtTime(g.out.gain.value, now); g.out.gain.linearRampToValueAtTime(0, now+2);
+  setTimeout(()=>{ for (const o of g.nodes){ try{o.stop();}catch(e){} } try{ g.out.disconnect(); }catch(e){} }, 2200);
+}
+function updateNowPlaying(){
+  const nt = document.getElementById('nowPlaying'); if (!nt) return;
+  nt.textContent = '♪ ' + CH_LABEL[channel];
+  document.getElementById('nextTrack').title = channel==='thien' ? 'Đang phát: ' + TRACKS[trackIdx].name + '. Bấm để đổi kênh nhạc' : 'Bấm để đổi kênh nhạc';
+}
+function setChannel(ch){
+  if (!AC) return;
+  channel = ch;
+  const now = AC.currentTime;
+  for (const old of musicEls){ old.g.gain.cancelScheduledValues(now); old.g.gain.setValueAtTime(old.g.gain.value, now); old.g.gain.linearRampToValueAtTime(0, now+2); const el=old.el; setTimeout(()=>{ try{el.pause();}catch(e){} }, 2100); }
+  musicEls = [];
+  genStop(); if (typeof chantStop==='function') chantStop();
+  clearInterval(mokTimer); clearInterval(bellTimer); mokTimer = bellTimer = null;
+  if (ch==='thien'){ playTrack(trackIdx+1); bellTimer=setInterval(bell, 45000); mokTimer=setInterval(mok, 1150); }
+  else if (ch==='tranh'){ genStart(true); }
+  else { genStart(false); if (typeof chantStart==='function') chantStart(); }
+  updateNowPlaying();
+}
+/* ---- "Chú Đại Bi" channel: the words go by one at a time on the mõ; a Vietnamese voice reads along when the device
+   has one. Text: the common Vietnamese version (Wikipedia tiếng Việt, "Chú đại bi"); a traditional text, no copyright. ---- */
+const DAI_BI = {"title": "Thiên thủ Thiên nhãn vô ngại Đại bi Tâm Đà la ni", "lines": ["Nam mô hắc ra đát na đa ra dạ da", "Nam mô a rị da", "Bà lô yết đế thước bát ra da", "Bồ đề tát đỏa bà da", "Ma ha tát đỏa bà da", "Ma ha ca lô ni ca da", "Án", "Tát bàn ra phạt duệ", "Số đát na đát tỏa", "Nam mô tất kiết lật đỏa y mông a rị da", "Bà lô yết đế thất phật ra lăng đà bà", "Nam mô na ra cẩn trì", "Hê rị ma ha bàn đa sa mế", "Tát bà a tha đậu du bằng", "A thệ dựng", "Tát bà tát đa", "Na ma bà dà ( Na ma bà tát đa)", "Ma phạt đạt đậu", "Đát điệt tha", "Án! a bà lô hê", "Lô ca đế", "Ca ra đế", "Di hê rị", "Ma ha bồ đề tát đỏa", "Tát bà tát bà", "Ma ra ma ra", "Ma hê ma hê rị đà dựng", "Cu lô cu lô yết mông", "Độ lô độ lô phạt xà da đế", "Ma ha phạt xà da đế", "Đà ra đà ra", "Địa rị ni", "Thất Phật ra da", "Dá ra dá ra", "Mạ mạ phạt ma ra", "Mục đế lệ", "Y hê y hê", "Thất na thất na", "A ra sâm Phật ra xá lợi", "Phạt sa phạt sâm", "Phật ra xá da", "Hô lô hô lô ma ra", "Hô lô hô lô hê rị", "Ta ra ta ra", "Tất rị tất rị", "Tô rô tô rô", "Bồ đề dạ bồ đề dạ", "Bồ đà dạ bồ đà dạ", "Di đế rị dạ", "Na ra cẩn trì", "Địa rị sắc ni na", "Ba dạ ma na", "Ta bà ha", "Tất đà dạ", "Ta bà ha", "Ma ha tất đà dạ", "Ta bà ha", "Tất đà du nghệ", "Thất bàn ra dạ", "Ta bà ha", "Na ra cẩn trì", "Ta bà ha", "Ma ra na ra", "Ta bà ha", "Tất ra tăng a mục khê da", "Ta bà ha", "Ta bà ma ha a tất đà dạ", "Ta bà ha", "Giả kiết ra a tất đà dạ", "Ta bà ha", "Ba đà ma yết tất đà dạ", "Ta bà ha", "Na ra cẩn trì bàn đà ra dạ", "Ta bà ha", "Ma bà lị thắng yết ra dạ", "Ta bà ha", "Nam mô hắc ra đát na đa ra dạ da", "Nam mô a rị da", "Bà lô yết đế", "Thước bàn ra dạ", "Ta bà ha", "Án tất điện đô", "Mạn đa ra", "Bạt đà dạ", "Ta bà ha"]};
+const CHANT_BEAT = 520;
+let chant = null;
+const chantBox = document.getElementById('chant');
+function chantRender(){
+  if (!chant) return;
+  const L = chant.lines, i = chant.line;
+  chantBox.querySelector('.h').textContent = 'Chú Đại Bi · biến ' + chant.round;
+  chantBox.querySelector('.p').textContent = i>0 ? L[i-1] : '';
+  chantBox.querySelector('.n').textContent = i+1<L.length ? L[i+1] : '';
+  const c = chantBox.querySelector('.c'); c.textContent = '';
+  (L[i]||'').split(' ').forEach((w,k)=>{ const s=document.createElement('span'); s.textContent=w+' '; if (k<=chant.word) s.className='on'; c.append(s); });
+}
+function chantStart(){
+  chantStop();
+  chant = { round:1, line:-1, word:0, timer:null, lines:[DAI_BI.title, ...DAI_BI.lines] };
+  chantBox.hidden = false; chantNext();
+}
+function chantStop(){
+  if (!chant) return; clearTimeout(chant.timer); chant = null; chantBox.hidden = true;
+  try { speechSynthesis.cancel(); } catch(e){}
+}
+function chantNext(){
+  const c = chant; if (!c) return;
+  c.line++;
+  if (c.line >= c.lines.length){ c.round++; c.lines = DAI_BI.lines; c.line = 0; bell(true); }
+  const text = c.lines[c.line], words = text.split(' ');
+  c.word = 0; chantRender(); mok();
+  const voice = viVoice && !muted && 'speechSynthesis' in window;
+  if (voice){
+    let done = false;
+    const fin = ()=>{ if (done || chant!==c) return; done = true; clearTimeout(c.timer); c.word = words.length; chantRender(); c.timer = setTimeout(chantNext, 260); };
+    const u = new SpeechSynthesisUtterance(text); u.voice = viVoice; u.lang = viVoice.lang; u.rate = .85; u.pitch = .8;
+    u.onend = u.onerror = fin;
+    u.onboundary = e => { if (chant!==c) return; c.word = text.slice(0, e.charIndex).split(' ').length - 1; chantRender(); };
+    speechSynthesis.speak(u);
+    c.timer = setTimeout(fin, words.length*900 + 2500);   // some browsers never fire onend
+  } else {
+    const step = ()=>{ if (chant!==c) return; c.word++; if (c.word < words.length){ mok(); chantRender(); c.timer = setTimeout(step, CHANT_BEAT); } else c.timer = setTimeout(chantNext, CHANT_BEAT); };
+    c.timer = setTimeout(step, CHANT_BEAT);
+  }
+}
 function bell(big){
   if(!AC||muted) return; const t=AC.currentTime, k = big?1.6:1;
   for (const [f,a,d] of [[432,.5,6],[1296,.18,3.5],[2160,.08,2.2]]) { const o=AC.createOscillator(); o.type='sine'; o.frequency.value=f/(big?2:1); const g=AC.createGain(); g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(a*k,t+.02); g.gain.exponentialRampToValueAtTime(.0005,t+d*k); o.connect(g); g.connect(master); o.start(t); o.stop(t+d*k+.1); }
@@ -239,7 +374,7 @@ function pickViVoice(){
 if ('speechSynthesis' in window){ pickViVoice(); speechSynthesis.addEventListener('voiceschanged', pickViVoice); }
 function ttsSpeak(text){
   try {
-    if(!('speechSynthesis' in window)) return;
+    if(!('speechSynthesis' in window) || chant) return;
     if(!viVoice){ pickViVoice(); }
     if(!viVoice){ if(!ttsWarned){ ttsWarned=true; say('Hệ thống',' Máy này chưa có giọng tiếng Việt nên không đọc thành tiếng.'); } return; }
     speechSynthesis.cancel(); const u=new SpeechSynthesisUtterance(text); u.voice=viVoice; u.lang=viVoice.lang; u.rate=.95; u.pitch=.95; u.onstart=()=>setDuck(true); u.onend=u.onerror=()=>setDuck(false); speechSynthesis.speak(u);
@@ -291,9 +426,9 @@ form.addEventListener('submit', e=>{
   say(name,' đã vào chánh điện'); showToast('Hoan nghênh '+name+' vào chánh điện'); ttsSpeak('Hoan nghênh '+name+' vào chánh điện');
 });
 document.getElementById('gifts').addEventListener('click', e=>{ const b=e.target.closest('button'); if(!b||!me) return; donate(me, +b.dataset.coins, b.dataset.fx, SUTRA[Math.floor(Math.random()*SUTRA.length)]); });
-document.getElementById('nextTrack').addEventListener('click', ()=>{ if(AC) playTrack(trackIdx+1); });
+document.getElementById('nextTrack').addEventListener('click', ()=>{ if(AC) setChannel(CH_ORDER[(CH_ORDER.indexOf(channel)+1)%CH_ORDER.length]); });
 document.getElementById('mute').addEventListener('click', e=>{ muted=!muted; if(master) master.gain.value=muted?0:.8; e.currentTarget.textContent=muted?'Bật nhạc':'Tắt nhạc'; e.currentTarget.setAttribute('aria-pressed',muted); });
-document.getElementById('leave').addEventListener('click', ()=>{ removeVisitor(me); me=null; gate.hidden=false; document.getElementById('me').hidden=true; for (const id of ['mute','pose','leave','gifts','nextTrack']) document.getElementById(id).hidden=true; for (const m of musicEls){ try{m.el.pause();}catch(e){} } musicEls=[]; if (AC){ AC.close(); AC=null; } clearInterval(mokTimer); clearInterval(bellTimer); renderBoard(); });
+document.getElementById('leave').addEventListener('click', ()=>{ removeVisitor(me); me=null; gate.hidden=false; document.getElementById('me').hidden=true; for (const id of ['mute','pose','leave','gifts','nextTrack']) document.getElementById(id).hidden=true; for (const m of musicEls){ try{m.el.pause();}catch(e){} } musicEls=[]; if (typeof chantStop==='function') chantStop(); if (gen){ gen.alive=false; gen.timers.forEach(clearTimeout); gen=null; } if (AC){ AC.close(); AC=null; } clearInterval(mokTimer); clearInterval(bellTimer); renderBoard(); });
 /* ---- your own figure: stand up, sit down, move between cushions ----
    States: walk → sitting (frames 4-7) → sit; sit → rising (frames 7-4) → stand (frame 4, on the cushion).
    Moving keeps your posture: seated you walk over and sit down again, standing you stay standing. */
