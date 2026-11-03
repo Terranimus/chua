@@ -77,6 +77,7 @@ input::placeholder{color:#7d6a52}
 #chant .p,#chant .n{font-size:12px;color:var(--muted);min-height:1.35em;opacity:.7;overflow-wrap:anywhere}
 #chant .c{font-family:var(--display);font-size:19px;line-height:1.35;margin:3px 0;color:var(--fg);overflow-wrap:anywhere}
 #chant .c span.on{color:var(--gold)}
+#gateSound{align-self:flex-end;margin-bottom:-34px;padding:4px 10px;font-size:14px;line-height:1}
 #toast{position:absolute;left:50%;top:14%;transform:translateX(-50%);z-index:6;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:9px 15px;font-family:var(--display);color:var(--gold);font-size:14px;opacity:0;transition:opacity .4s;pointer-events:none;max-width:88%;text-align:center}
 #toast.show{opacity:1}
 @media (prefers-reduced-motion:reduce){#toast,.msg{transition:none;animation:none}}
@@ -113,6 +114,7 @@ input::placeholder{color:#7d6a52}
   <div id="toast" role="status"></div>
   <div id="gate">
     <form id="gateForm">
+      <button type="button" class="btn" id="gateSound" aria-pressed="false" aria-label="Âm thanh">🔊</button>
       <h1>Chánh Điện Online</h1>
       <p>Nhập pháp danh, chọn y phục rồi vào an tọa. Các nút dâng cánh sen, dâng hương, hoa sen, thỉnh chuông bên dưới đều miễn phí.</p>
       <label for="dharma">Pháp danh</label>
@@ -248,10 +250,10 @@ const TRACKS = [
 let musicGain=null, musicEls=[], trackIdx=0, duck=1;
 function audioStart(){
   if (AC) return;
-  AC = new (window.AudioContext||window.webkitAudioContext)(); master = AC.createGain(); master.gain.value=.8; master.connect(AC.destination);
+  AC = new (window.AudioContext||window.webkitAudioContext)(); master = AC.createGain(); master.gain.value=muted?0:.8; master.connect(AC.destination);
   musicGain = AC.createGain(); musicGain.gain.value=.55; musicGain.connect(master);
   channel='thien'; playTrack(Math.floor(Math.random()*TRACKS.length));
-  bell(); bellTimer=setInterval(bell, 45000); mokTimer=setInterval(mok, 1150);
+  ambStart(); mokTimer=setInterval(mok, 1150);
 }
 function playTrack(i){
   trackIdx = (i+TRACKS.length)%TRACKS.length; const tr = TRACKS[trackIdx];
@@ -267,7 +269,7 @@ function playTrack(i){
 }
 function setDuck(on){ if(!musicGain) return; const t=AC.currentTime; musicGain.gain.cancelScheduledValues(t); musicGain.gain.setValueAtTime(musicGain.gain.value,t); musicGain.gain.linearRampToValueAtTime(on?.18:.55, t+.4); }
 /* ---- music channels: "Nhạc thiền" (the two Gemini tracks), "Đàn tranh" (made here by code, endless) ---- */
-const CH_LABEL = { thien:'Nhạc thiền', tranh:'Đàn tranh', daibi:'Chú Đại Bi' };
+const CH_LABEL = { thien:'Nhạc thiền', tranh:'Đàn tranh · sáo trúc', daibi:'Chú Đại Bi' };
 const CH_ORDER = ['thien','tranh','daibi'];
 let channel = 'thien', gen = null;
 const PLUCKS = {};
@@ -326,7 +328,32 @@ function genStart(withPlucks){
     if (Math.random()<.5) note(SCALE[Math.max(0,idx-2)]/2, t, false, .5);   // a low answering note
     later(phrase, (t-AC.currentTime)*1000 + 2500 + Math.random()*3500);
   }
-  bowl(); if (withPlucks) later(phrase, 1500);
+  function flute(){
+    let t = AC.currentTime+.15; const n = 3+Math.floor(Math.random()*4); let j = 2+Math.floor(Math.random()*3);
+    const o = AC.createOscillator(), o2 = AC.createOscillator(); o.type = 'sine'; o2.type = 'sine';
+    const h2 = AC.createGain(); h2.gain.value = .16; o2.connect(h2);
+    const vib = AC.createOscillator(), vg = AC.createGain(), vg2 = AC.createGain(); vib.frequency.value = 5.3; vg.gain.value = 0; vg2.gain.value = 2;
+    vib.connect(vg); vg.connect(o.frequency); vg.connect(vg2); vg2.connect(o2.frequency);
+    const env = AC.createGain(); env.gain.setValueAtTime(0, t); o.connect(env); h2.connect(env);
+    const nb = AC.createBuffer(1, AC.sampleRate*2, AC.sampleRate), nd = nb.getChannelData(0); for (let i=0;i<nd.length;i++) nd[i] = Math.random()*2-1;
+    const nz = AC.createBufferSource(); nz.buffer = nb; nz.loop = true; const bpf = AC.createBiquadFilter(); bpf.type = 'bandpass'; bpf.frequency.value = 2500; bpf.Q.value = .8;
+    const nzg = AC.createGain(); nzg.gain.value = .22; nz.connect(bpf); bpf.connect(nzg); nzg.connect(env);   // breath
+    env.connect(g.dry); env.connect(g.rev);
+    o.frequency.setValueAtTime(SCALE[j]*2, t); o2.frequency.setValueAtTime(SCALE[j]*4, t);
+    for (let i=0;i<n;i++){
+      j = Math.max(0, Math.min(5, j + [-2,-1,1,1,2][Math.floor(Math.random()*5)]));
+      const f = SCALE[j]*2, dur = [.8,1.2,1.6,2.2][Math.floor(Math.random()*4)];
+      o.frequency.setTargetAtTime(f, t, .05); o2.frequency.setTargetAtTime(f*2, t, .05);              // glide (luyến)
+      env.gain.setTargetAtTime(.075, t, .06);
+      vg.gain.setValueAtTime(0, t); vg.gain.linearRampToValueAtTime(f*.01, t+dur*.8);                 // vibrato grows (rung hơi)
+      if (i<n-1 && Math.random()<.4) env.gain.setTargetAtTime(.03, t+dur-.12, .03);                    // a tongued break
+      t += dur;
+    }
+    env.gain.setTargetAtTime(0, t, .25);
+    for (const x of [o, o2, vib, nz]){ x.start(); x.stop(t+1.5); }
+    later(flute, (t-AC.currentTime)*1000 + 9000 + Math.random()*14000);
+  }
+  bowl(); if (withPlucks){ later(phrase, 1500); later(flute, 8000); }
 }
 function genStop(){
   const g = gen; if (!g) return; gen = null; g.alive = false; g.timers.forEach(clearTimeout);
@@ -346,7 +373,7 @@ function setChannel(ch){
   musicEls = [];
   genStop(); if (typeof chantStop==='function') chantStop();
   clearInterval(mokTimer); clearInterval(bellTimer); mokTimer = bellTimer = null;
-  if (ch==='thien'){ playTrack(trackIdx+1); bellTimer=setInterval(bell, 45000); mokTimer=setInterval(mok, 1150); }
+  if (ch==='thien'){ playTrack(trackIdx+1); mokTimer=setInterval(mok, 1150); }
   else if (ch==='tranh'){ genStart(true); }
   else { genStart(false); if (typeof chantStart==='function') chantStart(); }
   updateNowPlaying();
@@ -396,6 +423,65 @@ function chantNext(){
     c.timer = setTimeout(step, CHANT_BEAT);
   }
 }
+/* ---- không gian chùa: a quiet temple soundscape under every channel, made here by code (no recording):
+   the great bell (đại hồng chung) struck once or three times every minute or so, wind chimes, a light wind and,
+   now and then, birds. It starts with the first touch or key anywhere on the page (browsers allow sound only then). */
+let amb = null;
+function ambStart(){
+  if (!AC || amb) return;
+  const a = { alive:true, timers:[], nodes:[] }; amb = a;
+  a.out = AC.createGain(); a.out.gain.setValueAtTime(0, AC.currentTime); a.out.gain.linearRampToValueAtTime(.9, AC.currentTime+4); a.out.connect(master);
+  a.rev = makeReverb(); const wet = AC.createGain(); wet.gain.value = .5; a.rev.connect(wet); wet.connect(a.out);
+  const later = (fn, ms) => { const id = setTimeout(()=>{ if (a.alive && AC) fn(); }, ms); a.timers.push(id); };
+  // wind: soft brown noise through a slowly moving band
+  const len = AC.sampleRate*4, nb = AC.createBuffer(1, len, AC.sampleRate), nd = nb.getChannelData(0);
+  let b0 = 0; for (let i=0;i<len;i++){ b0 = .985*b0 + .15*(Math.random()*2-1); nd[i] = b0; }
+  const ns = AC.createBufferSource(); ns.buffer = nb; ns.loop = true;
+  const bp = AC.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 500; bp.Q.value = .7;
+  const wg = AC.createGain(); wg.gain.value = .035;
+  const l1 = AC.createOscillator(), g1 = AC.createGain(); l1.frequency.value = .05; g1.gain.value = .025; l1.connect(g1); g1.connect(wg.gain);
+  const l2 = AC.createOscillator(), g2 = AC.createGain(); l2.frequency.value = .031; g2.gain.value = 250; l2.connect(g2); g2.connect(bp.frequency);
+  ns.connect(bp); bp.connect(wg); wg.connect(a.out); ns.start(); l1.start(); l2.start(); a.nodes.push(ns, l1, l2);
+  function greatBell(t){
+    const f = 58 + Math.random()*4;
+    for (const [k,amp,dec] of [[.5,.5,22],[1,.6,18],[1.19,.25,12],[1.5,.22,10],[2,.3,9],[2.5,.12,6],[2.67,.1,6],[3.01,.08,5],[4.1,.05,3.5]])
+      for (const det of [-.25,.25]){
+        const o = AC.createOscillator(); o.type = 'sine'; o.frequency.value = f*k + det*k; const g = AC.createGain();
+        g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(amp*.3, t+.015); g.gain.exponentialRampToValueAtTime(.0001, t+dec);
+        o.connect(g); g.connect(a.out); g.connect(a.rev); o.start(t); o.stop(t+dec+.1);
+      }
+    const s = AC.createBufferSource(); s.buffer = nb; const lp = AC.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 300;
+    const sg = AC.createGain(); sg.gain.setValueAtTime(.5, t); sg.gain.exponentialRampToValueAtTime(.001, t+.25);
+    s.connect(lp); lp.connect(sg); sg.connect(a.out); s.start(t, Math.random()*2); s.stop(t+.3);
+    setTimeout(()=>{ haloPulse = 1; }, Math.max(0, (t-AC.currentTime)*1000));
+  }
+  function bells(){ const t = AC.currentTime+.1, n = Math.random()<.35 ? 3 : 1; for (let i=0;i<n;i++) greatBell(t+i*7); later(bells, 55000+Math.random()*35000); }
+  const CHIME = [1046.5,1174.7,1396.9,1568.0,1760.0];
+  function chimes(){
+    const t0 = AC.currentTime+.05, n = 2+Math.floor(Math.random()*6);
+    for (let i=0;i<n;i++){ const t = t0+i*(.12+Math.random()*.5), f = CHIME[Math.floor(Math.random()*CHIME.length)];
+      for (const [k,amp,dec] of [[1,.05,3.5],[2.76,.018,1.5],[5.4,.008,.7]]){ const o = AC.createOscillator(); o.type = 'sine'; o.frequency.value = f*k; const g = AC.createGain();
+        g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(amp, t+.005); g.gain.exponentialRampToValueAtTime(.0001, t+dec);
+        o.connect(g); g.connect(a.out); g.connect(a.rev); o.start(t); o.stop(t+dec+.05); } }
+    later(chimes, 14000+Math.random()*26000);
+  }
+  function birds(){
+    const t0 = AC.currentTime+.05, n = 2+Math.floor(Math.random()*4), base = 2600+Math.random()*1400;
+    for (let i=0;i<n;i++){ const t = t0+i*(.18+Math.random()*.12), o = AC.createOscillator(); o.type = 'sine';
+      o.frequency.setValueAtTime(base, t); o.frequency.exponentialRampToValueAtTime(base*(1.3+Math.random()*.4), t+.06); o.frequency.exponentialRampToValueAtTime(base*.9, t+.12);
+      const g = AC.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.025, t+.015); g.gain.exponentialRampToValueAtTime(.0001, t+.14);
+      o.connect(g); g.connect(a.out); g.connect(a.rev); o.start(t); o.stop(t+.16); }
+    later(birds, 25000+Math.random()*45000);
+  }
+  later(()=>greatBell(AC.currentTime+.1), 1200); later(bells, 50000); later(chimes, 6000); later(birds, 15000);
+}
+function ambStop(){ const a = amb; if (!a) return; amb = null; a.alive = false; a.timers.forEach(clearTimeout); for (const n of a.nodes){ try{ n.stop(); }catch(e){} } }
+// Sound on the first touch or key anywhere (before entering too); the gate gets a small sound switch.
+function armAutoSound(){
+  const go = ()=>{ document.removeEventListener('pointerdown', go, true); document.removeEventListener('keydown', go, true); try { audioStart(); } catch(e){} };
+  document.addEventListener('pointerdown', go, true); document.addEventListener('keydown', go, true);
+}
+armAutoSound();
 function bell(big){
   if(!AC||muted) return; const t=AC.currentTime, k = big?1.6:1;
   for (const [f,a,d] of [[432,.5,6],[1296,.18,3.5],[2160,.08,2.2]]) { const o=AC.createOscillator(); o.type='sine'; o.frequency.value=f/(big?2:1); const g=AC.createGain(); g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(a*k,t+.02); g.gain.exponentialRampToValueAtTime(.0005,t+d*k); o.connect(g); g.connect(master); o.start(t); o.stop(t+d*k+.1); }
@@ -484,9 +570,13 @@ form.addEventListener('submit', e=>{
   say(name,' '+(window.chuaVoice?window.chuaVoice.joinedWord():'đã vào chánh điện')); showToast(VV().welcome(name)); ttsSpeak(VV().welcome(name));
 });
 document.getElementById('gifts').addEventListener('click', e=>{ const b=e.target.closest('button'); if(!b||!me) return; donate(me, +b.dataset.coins, b.dataset.fx, sutraLine()); if (window.chuaOnGift) chuaOnGift(b.dataset.fx, +b.dataset.coins); });
+const gateSound = document.getElementById('gateSound');
+function syncGateSound(){ if (gateSound){ gateSound.textContent = muted ? '🔇' : '🔊'; gateSound.setAttribute('aria-pressed', muted); } }
+if (gateSound) gateSound.addEventListener('click', ()=>{ document.getElementById('mute').click(); });
+document.getElementById('mute').addEventListener('click', ()=>setTimeout(syncGateSound));
 document.getElementById('nextTrack').addEventListener('click', ()=>{ if(AC) setChannel(CH_ORDER[(CH_ORDER.indexOf(channel)+1)%CH_ORDER.length]); });
 document.getElementById('mute').addEventListener('click', e=>{ muted=!muted; if(master) master.gain.value=muted?0:.8; e.currentTarget.textContent=window.chuaVoice?window.chuaVoice.str(muted?'unmute':'mute'):(muted?'Bật nhạc':'Tắt nhạc'); e.currentTarget.setAttribute('aria-pressed',muted); });
-document.getElementById('leave').addEventListener('click', ()=>{ removeVisitor(me); me=null; window.chuaLive=false; if (window.chuaOnLeave) chuaOnLeave(); gate.hidden=false; document.getElementById('me').hidden=true; for (const id of ['mute','pose','leave','gifts','nextTrack']) document.getElementById(id).hidden=true; for (const m of musicEls){ try{m.el.pause();}catch(e){} } musicEls=[]; if (typeof chantStop==='function') chantStop(); if (gen){ gen.alive=false; gen.timers.forEach(clearTimeout); gen=null; } if (AC){ AC.close(); AC=null; } clearInterval(mokTimer); clearInterval(bellTimer); renderBoard(); });
+document.getElementById('leave').addEventListener('click', ()=>{ removeVisitor(me); me=null; window.chuaLive=false; if (window.chuaOnLeave) chuaOnLeave(); gate.hidden=false; document.getElementById('me').hidden=true; for (const id of ['mute','pose','leave','gifts','nextTrack']) document.getElementById(id).hidden=true; for (const m of musicEls){ try{m.el.pause();}catch(e){} } musicEls=[]; if (typeof chantStop==='function') chantStop(); if (gen){ gen.alive=false; gen.timers.forEach(clearTimeout); gen=null; } ambStop(); if (AC){ AC.close(); AC=null; } armAutoSound(); clearInterval(mokTimer); clearInterval(bellTimer); renderBoard(); });
 /* ---- your own figure: stand up, sit down, move between cushions ----
    States: walk → sitting (frames 4-7) → sit; sit → rising (frames 7-4) → stand (frame 4, on the cushion).
    Moving keeps your posture: seated you walk over and sit down again, standing you stay standing. */
