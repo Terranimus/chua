@@ -17,7 +17,7 @@
 // inbox, 5 vault unreachable,
 // 8 the approval expired or was cancelled (run the command again).
 
-import { check, ensureSession, EXIT, VaultSyncError, resolveVaultUrl, isLoopbackOrigin } from '../vault-sync.mjs';
+import { check, pull, readStamp, ensureSession, EXIT, VaultSyncError, resolveVaultUrl, isLoopbackOrigin } from '../vault-sync.mjs';
 
 export { EXIT };
 
@@ -34,6 +34,16 @@ export async function vaultGate({ root, action, actions, project, environment, e
     // No session and a person at this terminal: sign in once through the browser, then carry on. No person (an agent, CI):
     // nothing happens here and check stops with the one-line 'Not signed in' instruction (exit 2).
     await ensureSession({ root, project, environment, actions: wanted, env, out: (l) => process.stderr.write(`${l}\n`), fetchImpl, now });
+    const say = (l) => process.stderr.write(`${l}\n`);
+    // 2026.11.11: an expired pull is pulled again here instead of stopping the deploy. check() shreds an
+    // expired pull itself; changed or missing files (a local edit) still stop with check's message.
+    const stamp = readStamp(root);
+    const nowMs = (now || Date.now)();
+    if (stamp && !(Date.parse(stamp.expires_at) > nowMs)) {
+      try { await check({ root, project, environment, actions: wanted, env, fetchImpl, now }); } catch { /* shredded */ }
+      say('vault gate: the last pull expired; pulling again');
+      await pull({ root, project, environment, actions: wanted, env, out: say, fetchImpl, now });
+    }
     const code = await check({ root, project, environment, actions: wanted, env, out, fetchImpl, now });
     return { ok: code === EXIT.ok, code };
   } catch (error) {
