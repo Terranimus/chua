@@ -35,7 +35,7 @@ writing), it can be added as a file in `assets/music/` and a fourth channel.
 
 ## How it is hosted
 
-A Cloudflare Worker named `chua` on the Terranimus Cloudflare account, with **Workers static assets**. It holds two
+A Cloudflare Worker named `chua` on the TerranSoul Cloudflare account (the one Terranimus Cloudflare account since 18 Nov 2026), with **Workers static assets**. It holds two
 Worker routes on Tử Vi's name, `tuvi.terranimus.com/chua` and `tuvi.terranimus.com/chua/*`; they are more specific than
 Tử Vi's own `tuvi.terranimus.com/*`, so every other Tử Vi path never reaches it. The Tử Vi app's code is not involved; its top bar links to
 `/chua/`. `ops/chua.worker.mjs` answers GET/HEAD only and adds:
@@ -56,7 +56,7 @@ Speech uses the browser's own Vietnamese voice when one is installed.
 
 ## Redeploy
 
-Credentials come only from the vault (record `Terranimus Cloudflare`, action `deploy`; manifest
+Credentials come only from the vault (record `TerranSoul Cloudflare`, fields `account id`, `api token`, `zone id terranimus.com`; action `deploy`; manifest
 `chua/production`, see `vault-manifest.json`). Never use wrangler for this Worker.
 
 ```bash
