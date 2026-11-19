@@ -17,7 +17,7 @@
 // inbox, 5 vault unreachable,
 // 8 the approval expired or was cancelled (run the command again).
 
-import { check, pull, readStamp, ensureSession, EXIT, VaultSyncError, resolveVaultUrl, isLoopbackOrigin } from '../vault-sync.mjs';
+import { check, pull, readStamp, ensureSession, EXIT, VaultSyncError, resolveVaultUrl, isLoopbackOrigin, defaultRequestAction } from '../vault-sync.mjs';
 
 export { EXIT };
 
@@ -27,6 +27,8 @@ export { EXIT };
 export async function vaultGate({ root, action, actions, project, environment, env = process.env, out = () => {}, err = (l) => process.stderr.write(`${l}\n`), fetchImpl, now, allowLoopback = false } = {}) {
   const wanted = actions && actions.length ? actions : action ? [action] : ['deploy'];
   const label = wanted.join(', ').toUpperCase();
+  // The approval card names the step that asked (X-Vault-Context: "gate deploy"), unless vault-sync's own command already did.
+  defaultRequestAction(`gate ${wanted.join(',')}`.slice(0, 48));
   try {
     if (!allowLoopback && isLoopbackOrigin(resolveVaultUrl({ ...env, VAULT_SYNC_TEST_LOOPBACK: '1' }))) {
       throw new VaultSyncError(EXIT.error, 'VAULT_URL points at this machine; a deploy only trusts vault.terranimus.com');
