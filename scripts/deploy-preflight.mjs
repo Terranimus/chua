@@ -37,20 +37,41 @@ say(who.status === 0, who.status === 0 ? 'vault session present' : 'no vault ses
 const mc = run(['scripts/vault-sync.mjs', 'manifest', 'check']);
 say(mc.status === 0, (mc.stdout || mc.stderr || '').trim().split('\n').pop() || 'manifest check');
 
-// 3. transport side equals token side: the token is sealed with Windows DPAPI, so a WSL/Linux process cannot read it.
+// 3. transport side equals token side. Since client 2026.11.10 WSL opens the Windows home and its DPAPI seal through interop, so a
+// DPAPI-sealed token is NOT a failure in WSL (treating it as one failed every WSL preflight). Only a session whoami refused is.
 const isWsl = process.platform === 'linux' && /microsoft/i.test(os.release());
-const sealedWindows = /DPAPI/i.test(who.stdout || '');
-say(!(isWsl && sealedWindows), isWsl && sealedWindows ? 'transport is WSL but the vault token is sealed on Windows: run the deploy from Windows PowerShell/Git Bash (npm run deploy:windows), not WSL' : `transport ${isWsl ? 'WSL' : process.platform} matches the token side`);
+say(who.status === 0, who.status === 0 ? `transport ${isWsl ? 'WSL' : process.platform} reads the vault token` : `transport ${isWsl ? 'WSL' : process.platform} cannot read a vault token (in WSL: Windows interop must be on, or run node scripts/vault-sync.mjs login)`);
+
+// A Windows path (D:/x or D:\x) named in a settings file does not exist inside WSL: map it to /mnt/d/x.
+const winToWsl = (p) => { const m = /^([A-Za-z]):[\\/](.*)$/.exec(String(p || '')); return isWsl && m ? `/mnt/${m[1].toLowerCase()}/${m[2].replace(/\\/g, '/')}` : p; };
+// ssh refuses a key it sees as readable by others, and every file on DrvFs (/mnt/<drive>) reads as 0777 in WSL: use a 0600 copy.
+const keyCopies = [];
+function usableKey(file) {
+  const p = winToWsl(file);
+  if (!isWsl || !p || !p.startsWith('/mnt/')) return p;
+  try {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'preflight-key-'));
+    keyCopies.push(dir);
+    const copy = path.join(dir, 'key');
+    fs.copyFileSync(p, copy, fs.constants.COPYFILE_EXCL);
+    fs.chmodSync(copy, 0o600);
+    return copy;
+  } catch (e) { console.log(`note could not make a 0600 copy of the key (${e.code || 'error'}); ssh may refuse it`); return p; }
+}
+const dropKeys = () => { for (const d of keyCopies) { try { fs.rmSync(d, { recursive: true, force: true }); } catch { /* best effort */ } } };
+process.on('exit', dropKeys);
+for (const sig of ['SIGINT', 'SIGTERM']) process.once(sig, () => { dropKeys(); process.exit(130); });
 
 // 4. SSH BatchMode per origin
 let cfg = {};
 try { cfg = JSON.parse(fs.readFileSync(path.join(ROOT, 'deploy-preflight.json'), 'utf8')); } catch { /* optional */ }
-const env = { ...readEnvFile(path.join(ROOT, '.env.local')), ...process.env };
+// The vault pull writes the SSH settings to .env.deploy in most apps and to .env.local in others: read both (the process env wins).
+const env = { ...readEnvFile(path.join(ROOT, '.env.local')), ...readEnvFile(path.join(ROOT, '.env.deploy')), ...process.env };
 const names = (cfg.origins || []).map((o) => o.name.toUpperCase());
 if (!names.length) for (const k of Object.keys(env)) { const m = /^SSH_HOST_([A-Z0-9_]+)$/.exec(k); if (m) names.push(m[1]); }
 for (const n of names) {
   const host = env[`SSH_HOST_${n}`]; const user = env[`SSH_USER_${n}`]; const port = env[`SSH_PORT_${n}`] || '22';
-  const key = env[`SSH_KEY_FILE_${n}`];
+  const key = usableKey(env[`SSH_KEY_FILE_${n}`]);
   if (!host || !user) { say(false, `ssh ${n}: SSH_HOST_${n} / SSH_USER_${n} not set (run: node scripts/vault-sync.mjs pull --action deploy)`); continue; }
   const args = ['-o', 'BatchMode=yes', '-o', 'ConnectTimeout=10', '-o', 'StrictHostKeyChecking=accept-new', '-p', port, ...(key ? ['-i', key] : []), `${user}@${host}`, 'true'];
   const r = spawnSync('ssh', args, { encoding: 'utf8', timeout: 30000, windowsHide: true });
@@ -83,7 +104,7 @@ async function health(url, lax = false) {
 }
 // Hosts: deploy-preflight.json wins; otherwise the estate registry (AI.Template estate/hosts.json, the single source of truth).
 function estateApp() {
-  const bases = [process.env.ESTATE_HOSTS_FILE, path.resolve(ROOT, '..', 'AI.Template', 'estate', 'hosts.json'), path.join(os.homedir(), '.terranimus', 'estate-hosts.json'), 'D:/Git/_handover/estate-hosts.cache.json'].filter(Boolean);
+  const bases = [process.env.ESTATE_HOSTS_FILE, path.resolve(ROOT, '..', 'AI.Template', 'estate', 'hosts.json'), path.join(os.homedir(), '.terranimus', 'estate-hosts.json'), 'D:/Git/_handover/estate-hosts.cache.json'].filter(Boolean).map(winToWsl);
   let reg = null;
   for (const b of bases) { try { reg = JSON.parse(fs.readFileSync(b, 'utf8')); break; } catch { /* next */ } }
   if (!reg) { const g = spawnSync('git', ['-C', path.resolve(ROOT, '..', 'AI.Template'), 'show', 'origin/main:estate/hosts.json'], { encoding: 'utf8', timeout: 15000, windowsHide: true }); try { reg = JSON.parse(g.stdout); } catch { /* none */ } }
